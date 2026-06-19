@@ -703,8 +703,21 @@ elif page == "Dilución":
 
     nombres_cristales, crystal_map = build_crystal_lookup(crystals)
 
-    # Número de corrientes
-    n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
+    col_n, col_reset = st.columns([4, 1])
+    with col_n:
+        # Número de corrientes: persiste entre navegaciones gracias a la key
+        if "dil_n_streams" not in st.session_state:
+            st.session_state["dil_n_streams"] = 4
+        n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, step=1,
+                                    key="dil_n_streams")
+    with col_reset:
+        st.markdown("&nbsp;")
+        if st.button("🔄 Reiniciar datos", key="btn_reset_dilucion",
+                    help="Borra todas las selecciones y baldadas de esta página"):
+            for k in list(st.session_state.keys()):
+                if k.startswith("dil_cristal_") or k.startswith("dil_bald_") or k == "dil_n_streams":
+                    del st.session_state[k]
+            st.rerun()
 
     st.markdown("---")
 
@@ -718,26 +731,29 @@ elif page == "Dilución":
         with cols_header[i + 1]:
             st.markdown(f"**Corriente {i+1}**")
 
-    # Fila: selección de cristal
+    # Fila: selección de cristal — el valor se mantiene solo (Streamlit lo recuerda por key)
     cols = st.columns(n_streams + 1)
     with cols[0]:
         st.markdown("<small style='color:#6B82A0'>Cristal</small>", unsafe_allow_html=True)
     selecciones = []
+    opciones = ["— Ninguno —"] + nombres_cristales
     for i in range(n_streams):
         with cols[i + 1]:
-            sel = st.selectbox("", ["— Ninguno —"] + nombres_cristales,
-                               key=f"dil_cristal_{i}", label_visibility="collapsed")
+            # Si la opción guardada ya no existe (p.ej. el cristal fue eliminado), resetea a "Ninguno"
+            key_i = f"dil_cristal_{i}"
+            if key_i in st.session_state and st.session_state[key_i] not in opciones:
+                st.session_state[key_i] = "— Ninguno —"
+            sel = st.selectbox("", opciones, key=key_i, label_visibility="collapsed")
             selecciones.append(sel)
 
-    # Fila: baldadas
+    # Fila: baldadas — el valor se mantiene solo (Streamlit lo recuerda por key)
     cols = st.columns(n_streams + 1)
     with cols[0]:
         st.markdown("<small style='color:#6B82A0'>Baldadas</small>", unsafe_allow_html=True)
     baldadas = []
     for i in range(n_streams):
         with cols[i + 1]:
-            b = st.number_input("", min_value=0, step=1, value=0,
-                                key=f"dil_bald_{i}", label_visibility="collapsed")
+            b = st.number_input("", min_value=0, step=1, key=f"dil_bald_{i}", label_visibility="collapsed")
             baldadas.append(b)
 
     # Calcular masas y corrientes
