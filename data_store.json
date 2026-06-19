@@ -1,19 +1,6 @@
 {
   "crystals": [
     {
-      "nombre": "L",
-      "lote": 1002,
-      "losa": "Losa 9A",
-      "ton": 10.0,
-      "K2SO4": 1.56,
-      "B": 0.03,
-      "NaCl": 0.73,
-      "Mg": 0.1,
-      "Na": 0.34,
-      "SO4": 0.86,
-      "Na2SO4": 0.0
-    },
-    {
       "nombre": "SOP",
       "lote": 1004,
       "losa": "Losa 3",
