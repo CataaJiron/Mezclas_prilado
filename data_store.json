@@ -1,19 +1,5 @@
 {
-  "crystals": [
-    {
-      "nombre": "mfe",
-      "lote": 0,
-      "losa": "",
-      "ton": 0.0,
-      "K2SO4": 0.0,
-      "B": 0.0,
-      "NaCl": 0.0,
-      "Mg": 0.0,
-      "Na": 0.0,
-      "SO4": 0.0,
-      "Na2SO4": 0.0
-    }
-  ],
+  "crystals": [],
   "products": {
     "QROP KPLUS": {
       "K2SO4": {
@@ -47,30 +33,5 @@
     }
   },
   "active_product": "QROP KPLUS",
-  "mix_dilucion": {
-    "total_masa": 25,
-    "law": {
-      "K2SO4": 1.1320000000000001,
-      "B": 0.022000000000000002,
-      "NaCl": 4.43,
-      "Mg": 0.12,
-      "Na": 1.024,
-      "SO4": 0.628,
-      "Na2SO4": 0.484
-    },
-    "streams": [
-      {
-        "nombre": "LDTP - Losa 9B",
-        "masa": 10
-      },
-      {
-        "nombre": "MFE - Losa 5",
-        "masa": 10
-      },
-      {
-        "nombre": "L - Losa 9A",
-        "masa": 5
-      }
-    ]
-  }
+  "mix_dilucion": null
 }
