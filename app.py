@@ -483,9 +483,9 @@ elif page == "Cristales":
     #    st.markdown("""
 #**Ley de mezcla ponderada por masa**
 
-```
+
 #Ley_componente = Σ(masa_i × ley_i) / Σ masa_i
-```
+
 
 #Donde:
 #- `masa_i` = baldadas × 5 toneladas
