@@ -870,19 +870,40 @@ elif page == "Tolva":
     st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
     nombres_cristales, crystal_map = build_crystal_lookup(crystals)
+    opciones_tolva = ["— Ninguno —"] + nombres_cristales
+
+    # ─── Almacenamiento propio que SOBREVIVE a cambiar de página ──────────────
+    # (las keys de los widgets se destruyen si el widget no se renderiza en un
+    # ciclo, p.ej. al visitar otra página; esta estructura no tiene ese problema)
+    if "tolva_inputs" not in st.session_state:
+        st.session_state.tolva_inputs = {"usar_mix": True, "n_extra": 4, "bald_mix": 0,
+                                         "cristales": {}, "baldadas": {}}
+    tolva_data = st.session_state.tolva_inputs
+
+    col_reset = st.columns([4, 1])[1]
+    with col_reset:
+        if st.button("🔄 Reiniciar datos", key="btn_reset_tolva",
+                    help="Borra todas las selecciones y baldadas de esta página"):
+            st.session_state.tolva_inputs = {"usar_mix": True, "n_extra": 4, "bald_mix": 0,
+                                             "cristales": {}, "baldadas": {}}
+            st.rerun()
 
     # ─── Incluir Mezcla Dilución como agregado fijo (en baldadas) ──────────────
     usar_mix = False
     if mix:
-        usar_mix = st.checkbox("Incluir Mezcla Dilución como Agregado 1", value=True)
+        usar_mix = st.checkbox("Incluir Mezcla Dilución como Agregado 1",
+                               value=tolva_data["usar_mix"], key="tolva_usar_mix_widget")
+        tolva_data["usar_mix"] = usar_mix
     else:
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
     st.markdown("---")
 
     # Número de agregados adicionales (cristales sueltos)
-    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=4, step=1)
+    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, step=1,
+                              value=tolva_data["n_extra"], key="tolva_n_extra_widget")
     n_extra = int(n_extra)
+    tolva_data["n_extra"] = n_extra
     n_total_cols = (1 if usar_mix else 0) + n_extra
 
     if n_total_cols == 0:
@@ -915,8 +936,13 @@ elif page == "Tolva":
         offset = 1
     for i in range(n_extra):
         with cols[offset + i + 1]:
-            sel = st.selectbox("", ["— Ninguno —"] + nombres_cristales,
-                               key=f"tolva_mat_{i}", label_visibility="collapsed")
+            valor_guardado = tolva_data["cristales"].get(i, "— Ninguno —")
+            if valor_guardado not in opciones_tolva:
+                valor_guardado = "— Ninguno —"
+            idx = opciones_tolva.index(valor_guardado)
+            sel = st.selectbox("", opciones_tolva, index=idx, key=f"tolva_mat_widget_{i}",
+                               label_visibility="collapsed")
+            tolva_data["cristales"][i] = sel
             selecciones_extra.append(sel)
 
     # ─── Fila: baldadas (incluye la Mezcla Dilución como input editable) ──────
@@ -926,13 +952,16 @@ elif page == "Tolva":
     baldadas_mix = 0
     if usar_mix:
         with cols[1]:
-            baldadas_mix = st.number_input("", min_value=0, step=1, value=0,
-                                           key="tolva_bald_mix", label_visibility="collapsed")
+            baldadas_mix = st.number_input("", min_value=0, step=1, value=tolva_data["bald_mix"],
+                                           key="tolva_bald_mix_widget", label_visibility="collapsed")
+            tolva_data["bald_mix"] = baldadas_mix
     baldadas_extra = []
     for i in range(n_extra):
         with cols[offset + i + 1]:
-            b = st.number_input("", min_value=0, step=1, value=0,
-                                key=f"tolva_bald_{i}", label_visibility="collapsed")
+            valor_guardado = tolva_data["baldadas"].get(i, 0)
+            b = st.number_input("", min_value=0, step=1, value=valor_guardado,
+                                key=f"tolva_bald_widget_{i}", label_visibility="collapsed")
+            tolva_data["baldadas"][i] = b
             baldadas_extra.append(b)
 
     # ─── Construir lista de agregados activos (masa = baldadas × 5) ───────────
