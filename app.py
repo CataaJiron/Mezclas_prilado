@@ -115,16 +115,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── COMPONENTES QUÍMICOS ─────────────────────────────────────────────────────
+# ─── Agregados QUÍMICOS ─────────────────────────────────────────────────────
 COMPS = ["K2SO4", "B", "NaCl", "Mg", "Na", "SO4", "Na2SO4"]
 
 # ─── DATOS POR DEFECTO ────────────────────────────────────────────────────────
 DEFAULT_CRYSTALS = [
-    {"nombre": "LDTP", "K2SO4": 0.63,  "B": 0.01, "NaCl": 0.39,  "Mg": 0.09, "Na": 0.14, "SO4": 0.35, "Na2SO4": 0.05},
-    {"nombre": "L",    "K2SO4": 1.56,  "B": 0.03, "NaCl": 0.73,  "Mg": 0.10, "Na": 0.34, "SO4": 0.86, "Na2SO4": 0.00},
-    {"nombre": "MFE",  "K2SO4": 1.42,  "B": 0.03, "NaCl": 10.32, "Mg": 0.16, "Na": 2.25, "SO4": 0.79, "Na2SO4": 1.16},
-    {"nombre": "SOP",  "K2SO4": 100.0, "B": 0.00, "NaCl": 0.00,  "Mg": 0.00, "Na": 0.00, "SO4": 55.0, "Na2SO4": 0.00},
-    {"nombre": "MOP",  "K2SO4": 0.00,  "B": 0.00, "NaCl": 75.0,  "Mg": 0.00, "Na": 0.00, "SO4": 0.00, "Na2SO4": 0.00},
+    {"nombre": "LDTP", "lote": 1001, "losa": "Losa 9B", "ton": 15.0, "K2SO4": 0.63,  "B": 0.01, "NaCl": 0.39,  "Mg": 0.09, "Na": 0.14, "SO4": 0.35, "Na2SO4": 0.05},
+    {"nombre": "L",    "lote": 1002, "losa": "Losa 9A", "ton": 10.0, "K2SO4": 1.56,  "B": 0.03, "NaCl": 0.73,  "Mg": 0.10, "Na": 0.34, "SO4": 0.86, "Na2SO4": 0.00},
+    {"nombre": "MFE",  "lote": 1003, "losa": "Losa 5",  "ton": 20.0, "K2SO4": 1.42,  "B": 0.03, "NaCl": 10.32, "Mg": 0.16, "Na": 2.25, "SO4": 0.79, "Na2SO4": 1.16},
+    {"nombre": "SOP",  "lote": 1004, "losa": "Losa 3",  "ton": 5.0,  "K2SO4": 100.0, "B": 0.00, "NaCl": 0.00,  "Mg": 0.00, "Na": 0.00, "SO4": 55.0, "Na2SO4": 0.00},
+    {"nombre": "MOP",  "lote": 1005, "losa": "Losa 1",  "ton": 5.0,  "K2SO4": 0.00,  "B": 0.00, "NaCl": 75.0,  "Mg": 0.00, "Na": 0.00, "SO4": 0.00, "Na2SO4": 0.00},
 ]
 
 DEFAULT_CONSTRAINTS = {
@@ -323,12 +323,12 @@ with st.sidebar:
         "Módulo",
         options=["Dashboard", "Cristales", "Dilución", "Tolva", "Calidad", "Optimizador"],
         format_func=lambda x: {
-            "Dashboard":   "Dashboard",
-            "Cristales":   "Base de cristales",
-            "Dilución":    "Mezcla de Dilución",
-            "Tolva":       "Alimentación Tolva",
-            "Calidad":     "Restricciones",
-            "Optimizador": "Optimizador",
+            "Dashboard":   "◈  Dashboard",
+            "Cristales":   "⬡  Base de cristales",
+            "Dilución":    "⟳  Mezcla de Dilución",
+            "Tolva":       "▽  Alimentación Tolva",
+            "Calidad":     "◎  Restricciones",
+            "Optimizador": "◆  Optimizador",
         }[x],
     )
 
@@ -343,8 +343,8 @@ with st.sidebar:
         st.info("Sin Dilución calculada")
 
     st.markdown("---")
-    #st.caption("Fórmula base:")
-    #st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
+    st.caption("Fórmula base:")
+    st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -416,7 +416,7 @@ if page == "Dashboard":
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Cristales":
     st.markdown('<div class="section-header">⬡  Base de datos de cristales</div>', unsafe_allow_html=True)
-    st.caption("Registra las leyes químicas (% en masa) de cada material disponible en cancha.")
+    st.caption("Registra las leyes químicas (% en masa) de cada material disponible en cancha, junto con su lote, losa y stock.")
 
     # Mostrar tabla actual
     crystals = st.session_state.crystals
@@ -425,6 +425,15 @@ elif page == "Cristales":
         df_display = df.copy()
         for c in COMPS:
             df_display[c] = df_display[c].apply(lambda x: f"{x:.3f}" if x > 0 else "—")
+        if "ton" in df_display.columns:
+            df_display["ton"] = df_display["ton"].apply(lambda x: f"{x:.1f}")
+        # Reordenar columnas: nombre, lote, losa, ton, luego Agregados
+        cols_order = ["nombre", "lote", "losa", "ton"] + COMPS
+        cols_order = [c for c in cols_order if c in df_display.columns]
+        df_display = df_display[cols_order]
+        df_display = df_display.rename(columns={
+            "nombre": "Cristal", "lote": "N° Lote", "losa": "Losa", "ton": "Ton",
+        })
         st.dataframe(df_display, hide_index=True, use_container_width=True)
     else:
         st.warning("No hay cristales registrados. Agrega al menos uno.")
@@ -436,7 +445,16 @@ elif page == "Cristales":
         mode = st.radio("Acción", ["Nuevo cristal", "Editar existente", "Eliminar"], horizontal=True)
 
         if mode == "Nuevo cristal":
-            nombre = st.text_input("Nombre del cristal", placeholder="Ej: MFE")
+            id_cols = st.columns(4)
+            with id_cols[0]:
+                nombre = st.text_input("Nombre del cristal", placeholder="Ej: MFE")
+            with id_cols[1]:
+                lote = st.number_input("N° Lote", min_value=0, step=1, value=0, key="new_lote")
+            with id_cols[2]:
+                losa = st.text_input("Losa", placeholder="Ej: Losa 9A", key="new_losa")
+            with id_cols[3]:
+                ton = st.number_input("Ton (stock disponible)", min_value=0.0, step=0.5, value=0.0, key="new_ton")
+
             cols = st.columns(4)
             vals = {}
             for i, comp in enumerate(COMPS):
@@ -447,7 +465,7 @@ elif page == "Cristales":
                 if not nombre.strip():
                     st.error("Ingresa un nombre.")
                 else:
-                    entry = {"nombre": nombre.strip(), **vals}
+                    entry = {"nombre": nombre.strip(), "lote": int(lote), "losa": losa.strip(), "ton": float(ton), **vals}
                     st.session_state.crystals.append(entry)
                     st.success(f"Cristal '{nombre}' guardado.")
                     st.rerun()
@@ -457,6 +475,17 @@ elif page == "Cristales":
             sel = st.selectbox("Seleccionar cristal", nombres)
             idx = nombres.index(sel)
             cr = crystals[idx]
+
+            id_cols = st.columns(4)
+            with id_cols[0]:
+                st.text_input("Nombre del cristal", value=sel, disabled=True, key="edit_nombre_display")
+            with id_cols[1]:
+                lote = st.number_input("N° Lote", min_value=0, step=1, value=int(cr.get("lote", 0)), key="edit_lote")
+            with id_cols[2]:
+                losa = st.text_input("Losa", value=cr.get("losa", ""), key="edit_losa")
+            with id_cols[3]:
+                ton = st.number_input("Ton (stock disponible)", min_value=0.0, step=0.5, value=float(cr.get("ton", 0)), key="edit_ton")
+
             cols = st.columns(4)
             vals = {}
             for i, comp in enumerate(COMPS):
@@ -465,7 +494,9 @@ elif page == "Cristales":
                                                   min_value=0.0, step=0.001, format="%.3f",
                                                   key=f"edit_{comp}")
             if st.button("✓ Actualizar cristal", type="primary"):
-                st.session_state.crystals[idx] = {"nombre": sel, **vals}
+                st.session_state.crystals[idx] = {
+                    "nombre": sel, "lote": int(lote), "losa": losa.strip(), "ton": float(ton), **vals
+                }
                 st.success(f"Cristal '{sel}' actualizado.")
                 st.rerun()
 
@@ -478,6 +509,7 @@ elif page == "Cristales":
                 st.rerun()
 
     # (Sección de fórmulas auditables removida)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -495,8 +527,8 @@ elif page == "Dilución":
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    # Número de corrientes
-    n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
+    # Número de Agregados
+    n_streams = st.number_input("Número de Agregados", min_value=1, max_value=8, value=4, step=1)
 
     st.markdown("---")
 
@@ -532,7 +564,7 @@ elif page == "Dilución":
                                 key=f"dil_bald_{i}", label_visibility="collapsed")
             baldadas.append(b)
 
-    # Calcular masas y corrientes
+    # Calcular masas y Agregados
     streams = []
     for i in range(n_streams):
         if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
@@ -657,12 +689,12 @@ elif page == "Tolva":
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
     st.markdown("---")
-    st.markdown("#### Corrientes adicionales")
+    st.markdown("#### Agregados adicionales")
 
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    n_extra = st.number_input("Número de corrientes adicionales", min_value=0, max_value=6, value=2, step=1)
+    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=2, step=1)
 
     for i in range(int(n_extra)):
         col1, col2 = st.columns([2, 1])
@@ -747,7 +779,7 @@ border:1px solid #1E2A3A;border-radius:8px">
             st.success("✅ Mezcla APROBADA — Cumple todas las restricciones de calidad.")
         else:
             fallidas = [c["comp"] for c in checks if not c["ok"]]
-            st.error(f"❌ Mezcla RECHAZADA — Componentes fuera de especificación: {', '.join(fallidas)}")
+            st.error(f"❌ Mezcla RECHAZADA — Agregados fuera de especificación: {', '.join(fallidas)}")
 
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
                     '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
@@ -937,7 +969,7 @@ border:1px solid #1E2A3A;border-radius:8px">
                 st.success("✅ Mezcla APROBADA — Cumple todas las restricciones con la composición propuesta.")
             else:
                 st.warning(
-                    f"⚠️ No se encontró combinación perfecta. Componentes fuera de spec: {', '.join(fails)}. "
+                    f"⚠️ No se encontró combinación perfecta. Agregados fuera de spec: {', '.join(fails)}. "
                     "Considera ampliar las restricciones o agregar más materiales."
                 )
 
