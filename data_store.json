@@ -1,5 +1,71 @@
 {
-  "crystals": [],
+  "crystals": [
+    {
+      "nombre": "LDTP",
+      "lote": 1001,
+      "losa": "Losa 9B",
+      "ton": 15.0,
+      "K2SO4": 0.63,
+      "B": 0.01,
+      "NaCl": 0.39,
+      "Mg": 0.09,
+      "Na": 0.14,
+      "SO4": 0.35,
+      "Na2SO4": 0.05
+    },
+    {
+      "nombre": "L",
+      "lote": 1002,
+      "losa": "Losa 9A",
+      "ton": 10.0,
+      "K2SO4": 1.56,
+      "B": 0.03,
+      "NaCl": 0.73,
+      "Mg": 0.1,
+      "Na": 0.34,
+      "SO4": 0.86,
+      "Na2SO4": 0.0
+    },
+    {
+      "nombre": "MFE",
+      "lote": 1003,
+      "losa": "Losa 5",
+      "ton": 20.0,
+      "K2SO4": 1.42,
+      "B": 0.03,
+      "NaCl": 10.32,
+      "Mg": 0.16,
+      "Na": 2.25,
+      "SO4": 0.79,
+      "Na2SO4": 1.16
+    },
+    {
+      "nombre": "SOP",
+      "lote": 1004,
+      "losa": "Losa 3",
+      "ton": 5.0,
+      "K2SO4": 100.0,
+      "B": 0.0,
+      "NaCl": 0.0,
+      "Mg": 0.0,
+      "Na": 0.0,
+      "SO4": 55.0,
+      "Na2SO4": 0.0
+    },
+    {
+      "nombre": "MOP",
+      "lote": 1005,
+      "losa": "Losa 1",
+      "ton": 5.0,
+      "K2SO4": 0.0,
+      "B": 0.0,
+      "NaCl": 75.0,
+      "Mg": 0.0,
+      "Na": 0.0,
+      "SO4": 0.0,
+      "Na2SO4": 0.0
+    }
+  ],
   "products": {
     "QROP KPLUS": {
       "K2SO4": {
@@ -34,15 +100,15 @@
   },
   "active_product": "QROP KPLUS",
   "mix_dilucion": {
-    "total_masa": 30,
+    "total_masa": 25,
     "law": {
-      "K2SO4": 17.35,
-      "B": 0.013333333333333334,
-      "NaCl": 16.07,
-      "Mg": 0.08333333333333333,
-      "Na": 0.7966666666666666,
-      "SO4": 9.546666666666665,
-      "Na2SO4": 0.17333333333333334
+      "K2SO4": 1.1320000000000001,
+      "B": 0.022000000000000002,
+      "NaCl": 4.43,
+      "Mg": 0.12,
+      "Na": 1.024,
+      "SO4": 0.628,
+      "Na2SO4": 0.484
     },
     "streams": [
       {
@@ -50,15 +116,11 @@
         "masa": 10
       },
       {
-        "nombre": "MFE - LOSA 09E",
+        "nombre": "MFE - Losa 5",
         "masa": 10
       },
       {
-        "nombre": "MOP - Losa 1",
-        "masa": 5
-      },
-      {
-        "nombre": "SOP - Losa 3",
+        "nombre": "L - Losa 9A",
         "masa": 5
       }
     ]
