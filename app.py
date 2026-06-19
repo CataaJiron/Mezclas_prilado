@@ -323,12 +323,12 @@ with st.sidebar:
         "Módulo",
         options=["Dashboard", "Cristales", "Dilución", "Tolva", "Calidad", "Optimizador"],
         format_func=lambda x: {
-            "Dashboard":   "◈  Dashboard",
-            "Cristales":   "⬡  Base de cristales",
-            "Dilución":    "⟳  Mezcla de Dilución",
-            "Tolva":       "▽  Alimentación Tolva",
-            "Calidad":     "◎  Restricciones",
-            "Optimizador": "◆  Optimizador",
+            "Dashboard":   "Dashboard",
+            "Cristales":   "Base de cristales",
+            "Dilución":    "Mezcla de Dilución",
+            "Tolva":       "Alimentación Tolva",
+            "Calidad":     "Restricciones",
+            "Optimizador": "Optimizador",
         }[x],
     )
 
