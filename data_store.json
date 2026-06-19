@@ -27,19 +27,6 @@
       "Na2SO4": 0.0
     },
     {
-      "nombre": "MFE",
-      "lote": 1003,
-      "losa": "Losa 5",
-      "ton": 20.0,
-      "K2SO4": 1.42,
-      "B": 0.03,
-      "NaCl": 10.32,
-      "Mg": 0.16,
-      "Na": 2.25,
-      "SO4": 0.79,
-      "Na2SO4": 1.16
-    },
-    {
       "nombre": "SOP",
       "lote": 1004,
       "losa": "Losa 3",
@@ -63,19 +50,6 @@
       "Mg": 0.0,
       "Na": 0.0,
       "SO4": 0.0,
-      "Na2SO4": 0.0
-    },
-    {
-      "nombre": "MFE",
-      "lote": 920188,
-      "losa": "Loza 09E",
-      "ton": 493.0,
-      "K2SO4": 1.42,
-      "B": 0.03,
-      "NaCl": 10.32,
-      "Mg": 0.16,
-      "Na": 2.25,
-      "SO4": 0.79,
       "Na2SO4": 0.0
     }
   ],
@@ -112,34 +86,5 @@
     }
   },
   "active_product": "QROP KPLUS",
-  "mix_dilucion": {
-    "total_masa": 30,
-    "law": {
-      "K2SO4": 17.66,
-      "B": 0.02,
-      "NaCl": 16.183333333333334,
-      "Mg": 0.08666666666666667,
-      "Na": 0.8633333333333333,
-      "SO4": 9.716666666666667,
-      "Na2SO4": 0.0
-    },
-    "streams": [
-      {
-        "nombre": "L - Losa 9A",
-        "masa": 10
-      },
-      {
-        "nombre": "MFE - Loza 09E",
-        "masa": 10
-      },
-      {
-        "nombre": "SOP - Losa 3",
-        "masa": 5
-      },
-      {
-        "nombre": "MOP - Losa 1",
-        "masa": 5
-      }
-    ]
-  }
+  "mix_dilucion": null
 }
