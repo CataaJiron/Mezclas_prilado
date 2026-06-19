@@ -211,7 +211,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── COMPONENTES QUÍMICOS ─────────────────────────────────────────────────────
+# ─── Agregados QUÍMICOS ─────────────────────────────────────────────────────
 COMPS = ["K2SO4", "B", "NaCl", "Mg", "Na", "SO4", "Na2SO4"]
 
 # ─── DATOS POR DEFECTO ────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ def calc_blend(streams: list[dict]) -> dict:
 
 def check_constraints(law: dict, constraints: dict) -> list[dict]:
     """
-    Evalúa cada componente contra sus restricciones.
+    Evalúa cada Agregados contra sus restricciones.
     Retorna lista de {comp, val, min, max, ok, near_limit, status}
     """
     results = []
@@ -540,7 +540,7 @@ if page == "Dashboard":
         with col_right:
             st.markdown("#### Ley química del producto")
             df_law = pd.DataFrame([
-                {"Componente": c, "Ley (%)": f"{law.get(c, 0):.4f}"} for c in COMPS
+                {"Agregados": c, "Ley (%)": f"{law.get(c, 0):.4f}"} for c in COMPS
             ])
             st.dataframe(df_law, hide_index=True, use_container_width=True)
 
@@ -566,7 +566,7 @@ elif page == "Cristales":
             df_display[c] = df_display[c].apply(lambda x: f"{x:.3f}" if x > 0 else "—")
         if "ton" in df_display.columns:
             df_display["ton"] = df_display["ton"].apply(lambda x: f"{x:.1f}")
-        # Reordenar columnas: nombre, lote, losa, ton, luego componentes
+        # Reordenar columnas: nombre, lote, losa, ton, luego Agregados
         cols_order = ["nombre", "lote", "losa", "ton"] + COMPS
         cols_order = [c for c in cols_order if c in df_display.columns]
         df_display = df_display[cols_order]
@@ -678,7 +678,7 @@ elif page == "Dilución":
     stream_inputs = []
     cols_header = st.columns(n_streams + 1)
     with cols_header[0]:
-        st.markdown("**Componente**")
+        st.markdown("**Agregados**")
 
     for i in range(n_streams):
         with cols_header[i + 1]:
@@ -724,7 +724,7 @@ elif page == "Dilución":
 
     tabla_data = []
     for comp in ["Masa (Ton)"] + COMPS:
-        row = {"Componente": comp}
+        row = {"Agregados": comp}
         for i in range(n_streams):
             if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
                 cr = crystal_map[selecciones[i]]
@@ -767,7 +767,7 @@ elif page == "Dilución":
 
         # Tabla completa de ley
         df_result = pd.DataFrame([
-            {"Componente": c, "Ley mezcla (%)": f"{blend['law'][c]:.4f}"} for c in COMPS
+            {"Agregados": c, "Ley mezcla (%)": f"{blend['law'][c]:.4f}"} for c in COMPS
         ])
         col_res, col_form = st.columns([1, 1])
         with col_res:
@@ -781,7 +781,7 @@ elif page == "Dilución":
 <strong>Auditoría del cálculo</strong><br><br>
 Masa total = {blend['total_masa']:.1f} Ton<br><br>
 Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
-<em>Aplicar misma fórmula a cada componente</em>
+<em>Aplicar misma fórmula a cada Agregados</em>
 </div>
 """, unsafe_allow_html=True)
 
@@ -922,10 +922,10 @@ border:1px solid #1E2A3A;border-radius:8px">
             st.success("✅ Mezcla APROBADA — Cumple todas las restricciones de calidad.")
         else:
             fallidas = [c["comp"] for c in checks if not c["ok"]]
-            st.error(f"❌ Mezcla RECHAZADA — Componentes fuera de especificación: {', '.join(fallidas)}")
+            st.error(f"❌ Mezcla RECHAZADA — Agregados fuera de especificación: {', '.join(fallidas)}")
 
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
-                    '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
+                    '— aplicado a cada Agregados por separado</div>', unsafe_allow_html=True)
     else:
         st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
 
@@ -1067,7 +1067,7 @@ elif page == "Calidad":
     rows = []
     for comp, c in st.session_state.products[active].items():
         rows.append({
-            "Componente": comp,
+            "Agregados": comp,
             "Mínimo (%)": f"{c['min']:.3f}" if c.get("min") is not None else "Sin restricción",
             "Máximo (%)": f"{c['max']:.3f}" if c.get("max") is not None else "Sin restricción",
         })
@@ -1079,7 +1079,7 @@ elif page == "Calidad":
         st.markdown("#### Comparación entre productos")
         comp_rows = []
         for comp in COMPS:
-            row = {"Componente": comp}
+            row = {"Agregados": comp}
             for pname in product_names:
                 c = st.session_state.products[pname].get(comp, {})
                 rng = []
@@ -1205,7 +1205,7 @@ border:1px solid #1E2A3A;border-radius:8px">
                 st.success("✅ Mezcla APROBADA — Cumple todas las restricciones con la composición propuesta.")
             else:
                 st.warning(
-                    f"⚠️ No se encontró combinación perfecta. Componentes fuera de spec: {', '.join(fails)}. "
+                    f"⚠️ No se encontró combinación perfecta. Agregados fuera de spec: {', '.join(fails)}. "
                     "Considera ampliar las restricciones o agregar más materiales."
                 )
 
