@@ -218,39 +218,39 @@ st.markdown("""
 COMPS = ["K2SO4", "B", "NaCl", "Mg", "Na", "SO4", "Na2SO4"]
 
 # ─── DATOS POR DEFECTO ────────────────────────────────────────────────────────
-DEFAULT_CRYSTALS = [
-    {"nombre": "LDTP", "lote": 1001, "losa": "Losa 9B", "ton": 15.0, "K2SO4": 0.63,  "B": 0.01, "NaCl": 0.39,  "Mg": 0.09, "Na": 0.14, "SO4": 0.35, "Na2SO4": 0.05},
-    {"nombre": "L",    "lote": 1002, "losa": "Losa 9A", "ton": 10.0, "K2SO4": 1.56,  "B": 0.03, "NaCl": 0.73,  "Mg": 0.10, "Na": 0.34, "SO4": 0.86, "Na2SO4": 0.00},
-    {"nombre": "MFE",  "lote": 1003, "losa": "Losa 5",  "ton": 20.0, "K2SO4": 1.42,  "B": 0.03, "NaCl": 10.32, "Mg": 0.16, "Na": 2.25, "SO4": 0.79, "Na2SO4": 1.16},
-    {"nombre": "SOP",  "lote": 1004, "losa": "Losa 3",  "ton": 5.0,  "K2SO4": 100.0, "B": 0.00, "NaCl": 0.00,  "Mg": 0.00, "Na": 0.00, "SO4": 55.0, "Na2SO4": 0.00},
-    {"nombre": "MOP",  "lote": 1005, "losa": "Losa 1",  "ton": 5.0,  "K2SO4": 0.00,  "B": 0.00, "NaCl": 75.0,  "Mg": 0.00, "Na": 0.00, "SO4": 0.00, "Na2SO4": 0.00},
-]
+# Sin datos de ejemplo: la app arranca completamente vacía hasta que el
+# usuario registre sus propios cristales y productos.
+DEFAULT_CRYSTALS = []
 
-DEFAULT_PRODUCTS = {
-    "K2SO4 Estándar": {
-        "K2SO4":  {"min": 18.0,  "max": 22.0},
-        "B":      {"min": None,  "max": 0.03},
-        "NaCl":   {"min": None,  "max": None},
-        "Mg":     {"min": None,  "max": 0.23},
-        "Na":     {"min": None,  "max": 0.70},
-        "SO4":    {"min": None,  "max": 1.50},
-        "Na2SO4": {"min": None,  "max": None},
-    },
-}
+DEFAULT_PRODUCTS = {}
 
 # ─── INICIALIZAR SESSION STATE ────────────────────────────────────────────────
 if "_data_loaded" not in st.session_state:
     remote = load_data_from_github() if github_storage_enabled() else None
-    if remote:
-        st.session_state.crystals = remote.get("crystals") or DEFAULT_CRYSTALS.copy()
-        st.session_state.products = remote.get("products") or {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
-        st.session_state.active_product = remote.get("active_product") or list(st.session_state.products.keys())[0]
+    if remote is not None:
+        # Usar 'is not None' (no 'or') para que listas/diccionarios vacíos
+        # guardados intencionalmente (p.ej. borraste todos los cristales)
+        # se respeten, en vez de repoblarse con los valores por defecto.
+        crystals_remote = remote.get("crystals")
+        st.session_state.crystals = crystals_remote if crystals_remote is not None else DEFAULT_CRYSTALS.copy()
+
+        products_remote = remote.get("products")
+        st.session_state.products = products_remote if products_remote is not None else {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
+
+        active_remote = remote.get("active_product")
+        if active_remote is not None and active_remote in st.session_state.products:
+            st.session_state.active_product = active_remote
+        elif st.session_state.products:
+            st.session_state.active_product = list(st.session_state.products.keys())[0]
+        else:
+            st.session_state.active_product = None
+
         st.session_state.mix_dilucion = remote.get("mix_dilucion")
         st.session_state["_github_sha"] = remote.get("_sha")
     else:
         st.session_state.crystals = DEFAULT_CRYSTALS.copy()
         st.session_state.products = {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
-        st.session_state.active_product = list(st.session_state.products.keys())[0]
+        st.session_state.active_product = list(st.session_state.products.keys())[0] if st.session_state.products else None
         st.session_state.mix_dilucion = None
     st.session_state["_data_loaded"] = True
 
@@ -259,7 +259,7 @@ if "crystals" not in st.session_state:
 if "products" not in st.session_state:
     st.session_state.products = {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
 if "active_product" not in st.session_state:
-    st.session_state.active_product = list(st.session_state.products.keys())[0]
+    st.session_state.active_product = list(st.session_state.products.keys())[0] if st.session_state.products else None
 if "mix_dilucion" not in st.session_state:
     st.session_state.mix_dilucion = None  # {"total_masa": float, "law": dict, "streams": list}
 
@@ -495,6 +495,8 @@ with st.sidebar:
         idx = product_names.index(current) if current in product_names else 0
         sel_product = st.selectbox("📦 Producto a fabricar", product_names, index=idx, key="sidebar_product_sel")
         st.session_state.active_product = sel_product
+    else:
+        st.caption("📦 Sin productos creados — ve a **Calidad** para crear el primero.")
 
     st.markdown("---")
 
@@ -867,7 +869,10 @@ elif page == "Tolva":
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
     constraints = get_active_constraints()
-    st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
+    if st.session_state.active_product:
+        st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
+    else:
+        st.warning("⚠️ No hay ningún producto creado, por lo tanto no hay restricciones de calidad activas. Ve a **Calidad** para crear uno.")
 
     nombres_cristales, crystal_map = build_crystal_lookup(crystals)
     opciones_tolva = ["— Ninguno —"] + nombres_cristales
@@ -1152,15 +1157,14 @@ elif page == "Calidad":
     if not active:
         st.stop()
 
-    # Opción de eliminar producto (si hay más de uno)
-    if len(product_names) > 1:
-        with st.expander("🗑 Eliminar este producto"):
-            st.warning(f"Vas a eliminar **{active}** y sus restricciones. Esta acción no se puede deshacer.")
-            if st.button("Confirmar eliminación", type="secondary", key="btn_delete_product"):
-                del st.session_state.products[active]
-                st.session_state.active_product = list(st.session_state.products.keys())[0]
-                persist_state()
-                st.rerun()
+    # Opción de eliminar producto (incluso si es el último que queda)
+    with st.expander("🗑 Eliminar este producto"):
+        st.warning(f"Vas a eliminar **{active}** y sus restricciones. Esta acción no se puede deshacer.")
+        if st.button("Confirmar eliminación", type="secondary", key="btn_delete_product"):
+            del st.session_state.products[active]
+            st.session_state.active_product = list(st.session_state.products.keys())[0] if st.session_state.products else None
+            persist_state()
+            st.rerun()
 
     st.markdown("---")
 
@@ -1257,7 +1261,10 @@ elif page == "Optimizador":
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
     constraints = get_active_constraints()
-    st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
+    if st.session_state.active_product:
+        st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
+    else:
+        st.warning("⚠️ No hay ningún producto creado, por lo tanto no hay restricciones de calidad activas. Ve a **Calidad** para crear uno.")
 
     if not crystals:
         st.warning("Primero registra cristales.")
