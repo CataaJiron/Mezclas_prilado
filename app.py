@@ -115,7 +115,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Agregados QUÍMICOS ─────────────────────────────────────────────────────
+# ─── COMPONENTES QUÍMICOS ─────────────────────────────────────────────────────
 COMPS = ["K2SO4", "B", "NaCl", "Mg", "Na", "SO4", "Na2SO4"]
 
 # ─── DATOS POR DEFECTO ────────────────────────────────────────────────────────
@@ -127,23 +127,38 @@ DEFAULT_CRYSTALS = [
     {"nombre": "MOP",  "lote": 1005, "losa": "Losa 1",  "ton": 5.0,  "K2SO4": 0.00,  "B": 0.00, "NaCl": 75.0,  "Mg": 0.00, "Na": 0.00, "SO4": 0.00, "Na2SO4": 0.00},
 ]
 
-DEFAULT_CONSTRAINTS = {
-    "K2SO4":  {"min": 18.0,  "max": 22.0},
-    "B":      {"min": None,  "max": 0.03},
-    "NaCl":   {"min": None,  "max": None},
-    "Mg":     {"min": None,  "max": 0.23},
-    "Na":     {"min": None,  "max": 0.70},
-    "SO4":    {"min": None,  "max": 1.50},
-    "Na2SO4": {"min": None,  "max": None},
+DEFAULT_PRODUCTS = {
+    "K2SO4 Estándar": {
+        "K2SO4":  {"min": 18.0,  "max": 22.0},
+        "B":      {"min": None,  "max": 0.03},
+        "NaCl":   {"min": None,  "max": None},
+        "Mg":     {"min": None,  "max": 0.23},
+        "Na":     {"min": None,  "max": 0.70},
+        "SO4":    {"min": None,  "max": 1.50},
+        "Na2SO4": {"min": None,  "max": None},
+    },
 }
 
 # ─── INICIALIZAR SESSION STATE ────────────────────────────────────────────────
 if "crystals" not in st.session_state:
     st.session_state.crystals = DEFAULT_CRYSTALS.copy()
-if "constraints" not in st.session_state:
-    st.session_state.constraints = DEFAULT_CONSTRAINTS.copy()
+if "products" not in st.session_state:
+    st.session_state.products = {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
+if "active_product" not in st.session_state:
+    st.session_state.active_product = list(st.session_state.products.keys())[0]
 if "mix_dilucion" not in st.session_state:
     st.session_state.mix_dilucion = None  # {"total_masa": float, "law": dict, "streams": list}
+
+
+def get_active_constraints():
+    """Devuelve las restricciones del producto actualmente seleccionado."""
+    products = st.session_state.products
+    active = st.session_state.active_product
+    if active not in products:
+        active = list(products.keys())[0] if products else None
+        st.session_state.active_product = active
+    return products.get(active, {}) if active else {}
+
 
 
 # ─── MOTOR MATEMÁTICO ─────────────────────────────────────────────────────────
@@ -323,14 +338,25 @@ with st.sidebar:
         "Módulo",
         options=["Dashboard", "Cristales", "Dilución", "Tolva", "Calidad", "Optimizador"],
         format_func=lambda x: {
-            "Dashboard":   "◈  Dashboard",
-            "Cristales":   "⬡  Base de cristales",
-            "Dilución":    "⟳  Mezcla de Dilución",
-            "Tolva":       "▽  Alimentación Tolva",
-            "Calidad":     "◎  Restricciones",
-            "Optimizador": "◆  Optimizador",
+            "Dashboard":   "Dashboard",
+            "Cristales":   "Base de cristales",
+            "Dilución":    "Mezcla de Dilución",
+            "Tolva":       "Alimentación Tolva",
+            "Calidad":     "Restricciones",
+            "Optimizador": "Optimizador",
         }[x],
     )
+
+    st.markdown("---")
+
+    # Selector de producto activo
+    products = st.session_state.products
+    product_names = list(products.keys())
+    if product_names:
+        current = st.session_state.active_product
+        idx = product_names.index(current) if current in product_names else 0
+        sel_product = st.selectbox("📦 Producto a fabricar", product_names, index=idx, key="sidebar_product_sel")
+        st.session_state.active_product = sel_product
 
     st.markdown("---")
 
@@ -343,8 +369,8 @@ with st.sidebar:
         st.info("Sin Dilución calculada")
 
     st.markdown("---")
-    st.caption("Fórmula base:")
-    st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
+    #st.caption("Fórmula base:")
+    #st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -368,7 +394,7 @@ if page == "Dashboard":
         st.metric("Mg final", f"{law['Mg']:.4f} %" if law else "—")
     with col5:
         if law:
-            checks = check_constraints(law, st.session_state.constraints)
+            checks = check_constraints(law, get_active_constraints())
             fails = sum(1 for c in checks if not c["ok"])
             st.metric("Estado calidad", "✓ Aprobado" if fails == 0 else f"✗ {fails} falla(s)")
         else:
@@ -381,9 +407,10 @@ if page == "Dashboard":
 
         with col_left:
             st.markdown("#### Comparación objetivo vs real")
-            checks = check_constraints(law, st.session_state.constraints)
+            active_constraints = get_active_constraints()
+            checks = check_constraints(law, active_constraints)
             for ch in checks:
-                constr = st.session_state.constraints.get(ch["comp"], {})
+                constr = active_constraints.get(ch["comp"], {})
                 if constr.get("min") is None and constr.get("max") is None:
                     continue
                 col_a, col_b, col_c = st.columns([2, 2, 1])
@@ -427,7 +454,7 @@ elif page == "Cristales":
             df_display[c] = df_display[c].apply(lambda x: f"{x:.3f}" if x > 0 else "—")
         if "ton" in df_display.columns:
             df_display["ton"] = df_display["ton"].apply(lambda x: f"{x:.1f}")
-        # Reordenar columnas: nombre, lote, losa, ton, luego Agregados
+        # Reordenar columnas: nombre, lote, losa, ton, luego componentes
         cols_order = ["nombre", "lote", "losa", "ton"] + COMPS
         cols_order = [c for c in cols_order if c in df_display.columns]
         df_display = df_display[cols_order]
@@ -532,15 +559,15 @@ elif page == "Dilución":
 
     st.markdown("---")
 
-    # Inputs por corriente
+    # Inputs por Agregados
     stream_inputs = []
     cols_header = st.columns(n_streams + 1)
     with cols_header[0]:
-        st.markdown("**Componente**")
+        st.markdown("**Agregados**")
 
     for i in range(n_streams):
         with cols_header[i + 1]:
-            st.markdown(f"**Corriente {i+1}**")
+            st.markdown(f"**Agregados {i+1}**")
 
     # Fila: selección de cristal
     cols = st.columns(n_streams + 1)
@@ -576,9 +603,9 @@ elif page == "Dilución":
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
-    # Tabla de leyes por corriente
+    # Tabla de leyes por Agregados
     st.markdown("---")
-    st.markdown("#### Tabla de leyes por corriente")
+    st.markdown("#### Tabla de leyes por Agregados")
 
     tabla_data = []
     for comp in ["Masa (Ton)"] + COMPS:
@@ -660,13 +687,14 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
     st.markdown('<div class="section-header">▽  Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como una corriente más. Ley final = Σ(masa × ley) / Σmasa")
+    st.caption("La Mezcla Dilución entra como una Agregados más. Ley final = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
-    constraints = st.session_state.constraints
+    constraints = get_active_constraints()
+    st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    # Corriente de Mezcla Dilución
+    # Agregados de Mezcla Dilución
     streams_tolva = []
 
     if mix:
@@ -779,25 +807,74 @@ border:1px solid #1E2A3A;border-radius:8px">
             st.success("✅ Mezcla APROBADA — Cumple todas las restricciones de calidad.")
         else:
             fallidas = [c["comp"] for c in checks if not c["ok"]]
-            st.error(f"❌ Mezcla RECHAZADA — Agregados fuera de especificación: {', '.join(fallidas)}")
+            st.error(f"❌ Mezcla RECHAZADA — Componentes fuera de especificación: {', '.join(fallidas)}")
 
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
                     '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
     else:
-        st.info("Agrega al menos una corriente para calcular la alimentación a tolva.")
+        st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 4: RESTRICCIONES
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Calidad":
-    st.markdown('<div class="section-header">◎  Restricciones de calidad</div>', unsafe_allow_html=True)
-    st.caption("Define los rangos objetivo del producto final. Semáforo: Verde=OK · Amarillo=cerca del límite · Rojo=fuera de spec.")
+    st.markdown('<div class="section-header">◎  Restricciones de calidad por producto</div>', unsafe_allow_html=True)
+    st.caption("Cada producto tiene su propio set de restricciones. Elige o crea un producto y define sus rangos objetivo. "
+               "Semáforo: Verde=OK · Amarillo=cerca del límite · Rojo=fuera de spec.")
 
-    constraints = st.session_state.constraints
+    products = st.session_state.products
+    product_names = list(products.keys())
+
+    # ─── Selector / gestor de productos ───────────────────────────────────────
+    st.markdown("#### Producto")
+    col_sel, col_new = st.columns([2, 1])
+    with col_sel:
+        if product_names:
+            current = st.session_state.active_product
+            idx = product_names.index(current) if current in product_names else 0
+            active = st.selectbox("Si se hace este producto, estas son sus restricciones:",
+                                  product_names, index=idx, key="calidad_product_sel")
+            st.session_state.active_product = active
+        else:
+            st.warning("No hay productos creados todavía.")
+            active = None
+    with col_new:
+        st.markdown("&nbsp;")
+        with st.popover("➕ Nuevo producto"):
+            new_name = st.text_input("Nombre del producto", placeholder="Ej: K2SO4 Premium", key="new_product_name")
+            if st.button("Crear producto", type="primary", key="btn_create_product"):
+                if not new_name.strip():
+                    st.error("Ingresa un nombre.")
+                elif new_name.strip() in products:
+                    st.error("Ya existe un producto con ese nombre.")
+                else:
+                    st.session_state.products[new_name.strip()] = {
+                        c: {"min": None, "max": None} for c in COMPS
+                    }
+                    st.session_state.active_product = new_name.strip()
+                    st.success(f"Producto '{new_name}' creado.")
+                    st.rerun()
+
+    if not active:
+        st.stop()
+
+    # Opción de eliminar producto (si hay más de uno)
+    if len(product_names) > 1:
+        with st.expander("🗑 Eliminar este producto"):
+            st.warning(f"Vas a eliminar **{active}** y sus restricciones. Esta acción no se puede deshacer.")
+            if st.button("Confirmar eliminación", type="secondary", key="btn_delete_product"):
+                del st.session_state.products[active]
+                st.session_state.active_product = list(st.session_state.products.keys())[0]
+                st.rerun()
+
+    st.markdown("---")
+
+    # ─── Edición de restricciones del producto activo ─────────────────────────
+    constraints = st.session_state.products[active]
     updated = {}
 
-    st.markdown("#### Rangos por componente")
+    st.markdown(f"#### Rangos objetivo — *{active}*")
     for comp in COMPS:
         c = constraints.get(comp, {})
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -806,13 +883,13 @@ elif page == "Calidad":
         with col2:
             min_val = st.number_input(
                 f"Mínimo", min_value=0.0, step=0.001, format="%.3f",
-                value=float(c.get("min") or 0.0), key=f"cmin_{comp}",
+                value=float(c.get("min") or 0.0), key=f"cmin_{active}_{comp}",
                 help="Dejar en 0 = sin mínimo"
             )
         with col3:
             max_val = st.number_input(
                 f"Máximo", min_value=0.0, step=0.001, format="%.3f",
-                value=float(c.get("max") or 0.0), key=f"cmax_{comp}",
+                value=float(c.get("max") or 0.0), key=f"cmax_{active}_{comp}",
                 help="Dejar en 0 = sin máximo"
             )
         updated[comp] = {
@@ -820,9 +897,9 @@ elif page == "Calidad":
             "max": max_val if max_val > 0 else None,
         }
 
-    if st.button("✓ Guardar restricciones", type="primary"):
-        st.session_state.constraints = updated
-        st.success("Restricciones actualizadas.")
+    if st.button("✓ Guardar restricciones de este producto", type="primary"):
+        st.session_state.products[active] = updated
+        st.success(f"Restricciones de '{active}' actualizadas.")
         st.rerun()
 
     st.markdown("---")
@@ -846,15 +923,33 @@ elif page == "Calidad":
 
     # Tabla resumen actual
     st.markdown("---")
-    st.markdown("#### Restricciones actuales")
+    st.markdown(f"#### Restricciones actuales — *{active}*")
     rows = []
-    for comp, c in st.session_state.constraints.items():
+    for comp, c in st.session_state.products[active].items():
         rows.append({
             "Componente": comp,
             "Mínimo (%)": f"{c['min']:.3f}" if c.get("min") is not None else "Sin restricción",
             "Máximo (%)": f"{c['max']:.3f}" if c.get("max") is not None else "Sin restricción",
         })
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+    # Tabla comparativa de todos los productos
+    if len(product_names) > 1:
+        st.markdown("---")
+        st.markdown("#### Comparación entre productos")
+        comp_rows = []
+        for comp in COMPS:
+            row = {"Componente": comp}
+            for pname in product_names:
+                c = st.session_state.products[pname].get(comp, {})
+                rng = []
+                if c.get("min") is not None:
+                    rng.append(f"≥{c['min']}")
+                if c.get("max") is not None:
+                    rng.append(f"≤{c['max']}")
+                row[pname] = " ".join(rng) if rng else "—"
+            comp_rows.append(row)
+        st.dataframe(pd.DataFrame(comp_rows), hide_index=True, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -866,7 +961,8 @@ elif page == "Optimizador":
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
-    constraints = st.session_state.constraints
+    constraints = get_active_constraints()
+    st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
     if not crystals:
         st.warning("Primero registra cristales.")
@@ -969,7 +1065,7 @@ border:1px solid #1E2A3A;border-radius:8px">
                 st.success("✅ Mezcla APROBADA — Cumple todas las restricciones con la composición propuesta.")
             else:
                 st.warning(
-                    f"⚠️ No se encontró combinación perfecta. Agregados fuera de spec: {', '.join(fails)}. "
+                    f"⚠️ No se encontró combinación perfecta. Componentes fuera de spec: {', '.join(fails)}. "
                     "Considera ampliar las restricciones o agregar más materiales."
                 )
 
