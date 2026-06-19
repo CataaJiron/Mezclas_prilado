@@ -343,8 +343,8 @@ with st.sidebar:
         st.info("Sin Dilución calculada")
 
     st.markdown("---")
-    st.caption("Fórmula base:")
-    st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
+    #st.caption("Fórmula base:")
+    #st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
