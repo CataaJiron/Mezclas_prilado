@@ -583,12 +583,19 @@ elif page == "Cristales":
             df_display[c] = df_display[c].apply(lambda x: f"{x:.3f}" if x > 0 else "—")
         if "ton" in df_display.columns:
             df_display["ton"] = df_display["ton"].apply(lambda x: f"{x:.1f}")
-        # Reordenar columnas: nombre, lote, losa, ton, luego componentes
-        cols_order = ["nombre", "lote", "losa", "ton"] + COMPS
+        # Columna combinada Cristal + Losa (ej: "LDTP - Losa 9B"), útil cuando hay
+        # más de un lote del mismo cristal en distintas losas
+        if "nombre" in df_display.columns and "losa" in df_display.columns:
+            df_display["cristal_losa"] = df_display.apply(
+                lambda r: f"{r['nombre']} - {r['losa']}" if r.get("losa") else r["nombre"], axis=1
+            )
+        # Reordenar columnas: nombre, cristal_losa, lote, losa, ton, luego componentes
+        cols_order = ["nombre", "cristal_losa", "lote", "losa", "ton"] + COMPS
         cols_order = [c for c in cols_order if c in df_display.columns]
         df_display = df_display[cols_order]
         df_display = df_display.rename(columns={
-            "nombre": "Cristal", "lote": "N° Lote", "losa": "Losa", "ton": "Ton",
+            "nombre": "Cristal", "cristal_losa": "Cristal + Losa",
+            "lote": "N° Lote", "losa": "Losa", "ton": "Ton",
         })
         st.dataframe(df_display, hide_index=True, use_container_width=True)
     else:
@@ -823,7 +830,7 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
     st.markdown('<div class="section-header">▽  Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como un Agregado más. Ley final = Σ(masa × ley) / Σmasa")
+    st.caption("La Mezcla Dilución entra como un Agregado más, en baldadas. 1 baldada = 5 toneladas  |  Ley final = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
@@ -833,13 +840,10 @@ elif page == "Tolva":
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    # ─── Incluir Mezcla Dilución como agregado fijo ────────────────────────────
+    # ─── Incluir Mezcla Dilución como agregado fijo (en baldadas) ──────────────
     usar_mix = False
     if mix:
-        usar_mix = st.checkbox(
-            f"Incluir Mezcla Dilución como Agregado 1 ({mix['total_masa']:.1f} Ton)",
-            value=True
-        )
+        usar_mix = st.checkbox("Incluir Mezcla Dilución como Agregado 1", value=True)
     else:
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
@@ -884,31 +888,33 @@ elif page == "Tolva":
                                key=f"tolva_mat_{i}", label_visibility="collapsed")
             selecciones_extra.append(sel)
 
-    # ─── Fila: masa (Ton) ───────────────────────────────────────────────────────
+    # ─── Fila: baldadas (incluye la Mezcla Dilución como input editable) ──────
     cols = st.columns(n_total_cols + 1)
     with cols[0]:
-        st.markdown("<small style='color:#6B82A0'>Masa (Ton)</small>", unsafe_allow_html=True)
-    masas_extra = []
+        st.markdown("<small style='color:#6B82A0'>Baldadas</small>", unsafe_allow_html=True)
+    baldadas_mix = 0
     if usar_mix:
         with cols[1]:
-            st.markdown(f"<div style='padding:6px 0;font-family:monospace;color:#00B4D8'>{mix['total_masa']:.1f}</div>",
-                       unsafe_allow_html=True)
+            baldadas_mix = st.number_input("", min_value=0, step=1, value=0,
+                                           key="tolva_bald_mix", label_visibility="collapsed")
+    baldadas_extra = []
     for i in range(n_extra):
         with cols[offset + i + 1]:
-            m = st.number_input("", min_value=0.0, step=1.0, value=0.0,
-                                key=f"tolva_masa_{i}", label_visibility="collapsed")
-            masas_extra.append(m)
+            b = st.number_input("", min_value=0, step=1, value=0,
+                                key=f"tolva_bald_{i}", label_visibility="collapsed")
+            baldadas_extra.append(b)
 
-    # ─── Construir lista de agregados activos ──────────────────────────────────
+    # ─── Construir lista de agregados activos (masa = baldadas × 5) ───────────
     streams_tolva = []
-    if usar_mix:
-        streams_tolva.append({"nombre": "Mezcla Dilución", "masa": mix["total_masa"], "law": mix["law"]})
+    if usar_mix and baldadas_mix > 0:
+        masa_mix = baldadas_mix * BALDADA_TON
+        streams_tolva.append({"nombre": "Mezcla Dilución", "masa": masa_mix, "law": mix["law"]})
     for i in range(n_extra):
-        if selecciones_extra[i] != "— Ninguno —" and masas_extra[i] > 0:
+        if selecciones_extra[i] != "— Ninguno —" and baldadas_extra[i] > 0:
             cr = crystal_map[selecciones_extra[i]]
             streams_tolva.append({
                 "nombre": selecciones_extra[i],
-                "masa": masas_extra[i],
+                "masa": baldadas_extra[i] * BALDADA_TON,
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
@@ -916,30 +922,40 @@ elif page == "Tolva":
     st.markdown("---")
     st.markdown("#### Tabla de leyes por Agregado")
 
-    def _agregado_law(i):
-        """Devuelve (nombre, masa, law) para la columna i de la grilla, o None si vacía."""
+    def _agregado_info(i):
+        """Devuelve (nombre, baldadas, masa, law) para la columna i de la grilla, o None si vacía."""
         if usar_mix and i == 0:
-            return ("Mezcla Dilución", mix["total_masa"], mix["law"])
+            if baldadas_mix > 0:
+                return ("Mezcla Dilución", baldadas_mix, baldadas_mix * BALDADA_TON, mix["law"])
+            return None
         j = i - (1 if usar_mix else 0)
-        if 0 <= j < n_extra and selecciones_extra[j] != "— Ninguno —" and masas_extra[j] > 0:
+        if 0 <= j < n_extra and selecciones_extra[j] != "— Ninguno —" and baldadas_extra[j] > 0:
             cr = crystal_map[selecciones_extra[j]]
-            return (selecciones_extra[j], masas_extra[j], {c: cr.get(c, 0) for c in COMPS})
+            return (selecciones_extra[j], baldadas_extra[j], baldadas_extra[j] * BALDADA_TON,
+                    {c: cr.get(c, 0) for c in COMPS})
         return None
 
     tabla_data = []
-    for comp in ["Masa (Ton)"] + COMPS:
+    for comp in ["Baldadas", "Masa (Ton)"] + COMPS:
         row = {"Componente": comp}
         for i in range(n_total_cols):
-            info = _agregado_law(i)
+            info = _agregado_info(i)
             col_key = f"{col_labels[i]}"
             if info:
-                _, masa_i, law_i = info
-                row[col_key] = f"{masa_i:.1f}" if comp == "Masa (Ton)" else f"{law_i.get(comp,0):.4f}"
+                _, bald_i, masa_i, law_i = info
+                if comp == "Baldadas":
+                    row[col_key] = f"{bald_i:d}"
+                elif comp == "Masa (Ton)":
+                    row[col_key] = f"{masa_i:.1f}"
+                else:
+                    row[col_key] = f"{law_i.get(comp,0):.4f}"
             else:
                 row[col_key] = "—"
         if streams_tolva:
             blend_preview = calc_blend(streams_tolva)
-            if comp == "Masa (Ton)":
+            if comp == "Baldadas":
+                row["⟶ Tolva Final"] = f"{round(blend_preview['total_masa']/BALDADA_TON):d}"
+            elif comp == "Masa (Ton)":
                 row["⟶ Tolva Final"] = f"{blend_preview['total_masa']:.1f}"
             else:
                 row["⟶ Tolva Final"] = f"{blend_preview['law'].get(comp,0):.4f}"
@@ -1004,9 +1020,9 @@ border:1px solid #1E2A3A;border-radius:8px">
             st.error(f"❌ Mezcla RECHAZADA — Componentes fuera de especificación: {', '.join(fallidas)}")
 
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
-                    '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
+                    '— aplicado a cada componente por separado | Masa_i = baldadas_i × 5 Ton</div>', unsafe_allow_html=True)
     else:
-        st.info("Agrega al menos un Agregado con masa > 0 para calcular la alimentación a tolva.")
+        st.info("Asigna baldadas a al menos un Agregado para calcular la alimentación a tolva.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
