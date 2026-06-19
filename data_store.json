@@ -14,19 +14,6 @@
       "Na2SO4": 0.0
     },
     {
-      "nombre": "MFE",
-      "lote": 1003,
-      "losa": "Losa 5",
-      "ton": 20.0,
-      "K2SO4": 1.42,
-      "B": 0.03,
-      "NaCl": 10.32,
-      "Mg": 0.16,
-      "Na": 2.25,
-      "SO4": 0.79,
-      "Na2SO4": 1.16
-    },
-    {
       "nombre": "SOP",
       "lote": 1004,
       "losa": "Losa 3",
