@@ -14,6 +14,7 @@ import json
 # ─── CONFIGURACIÓN DE PÁGINA ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="Optimizador de Mezclas de Sales",
+    page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -338,12 +339,12 @@ with st.sidebar:
         "Módulo",
         options=["Dashboard", "Cristales", "Dilución", "Tolva", "Calidad", "Optimizador"],
         format_func=lambda x: {
-            "Dashboard":   "Dashboard",
-            "Cristales":   "Base de cristales",
-            "Dilución":    "Mezcla de Dilución",
-            "Tolva":       "Alimentación Tolva",
-            "Calidad":     "Restricciones",
-            "Optimizador": "Optimizador",
+            "Dashboard":   "◈  Dashboard",
+            "Cristales":   "⬡  Base de cristales",
+            "Dilución":    "⟳  Mezcla de Dilución",
+            "Tolva":       "▽  Alimentación Tolva",
+            "Calidad":     "◎  Restricciones",
+            "Optimizador": "◆  Optimizador",
         }[x],
     )
 
@@ -369,8 +370,8 @@ with st.sidebar:
         st.info("Sin Dilución calculada")
 
     st.markdown("---")
-    #st.caption("Fórmula base:")
-    #st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
+    st.caption("Fórmula base:")
+    st.code("Ley = Σ(masa·ley) / Σmasa", language=None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -554,20 +555,20 @@ elif page == "Dilución":
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    # Número de Agregados
-    n_streams = st.number_input("Número de Agregados", min_value=1, max_value=8, value=4, step=1)
+    # Número de corrientes
+    n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
 
     st.markdown("---")
 
-    # Inputs por Agregados
+    # Inputs por corriente
     stream_inputs = []
     cols_header = st.columns(n_streams + 1)
     with cols_header[0]:
-        st.markdown("**Agregados**")
+        st.markdown("**Componente**")
 
     for i in range(n_streams):
         with cols_header[i + 1]:
-            st.markdown(f"**Agregados {i+1}**")
+            st.markdown(f"**Corriente {i+1}**")
 
     # Fila: selección de cristal
     cols = st.columns(n_streams + 1)
@@ -591,7 +592,7 @@ elif page == "Dilución":
                                 key=f"dil_bald_{i}", label_visibility="collapsed")
             baldadas.append(b)
 
-    # Calcular masas y Agregados
+    # Calcular masas y corrientes
     streams = []
     for i in range(n_streams):
         if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
@@ -603,9 +604,9 @@ elif page == "Dilución":
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
-    # Tabla de leyes por Agregados
+    # Tabla de leyes por corriente
     st.markdown("---")
-    st.markdown("#### Tabla de leyes por Agregados")
+    st.markdown("#### Tabla de leyes por corriente")
 
     tabla_data = []
     for comp in ["Masa (Ton)"] + COMPS:
@@ -687,14 +688,14 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
     st.markdown('<div class="section-header">▽  Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como una Agregados más. Ley final = Σ(masa × ley) / Σmasa")
+    st.caption("La Mezcla Dilución entra como una corriente más. Ley final = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
     constraints = get_active_constraints()
     st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    # Agregados de Mezcla Dilución
+    # Corriente de Mezcla Dilución
     streams_tolva = []
 
     if mix:
@@ -717,12 +718,12 @@ elif page == "Tolva":
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
     st.markdown("---")
-    st.markdown("#### Agregados adicionales")
+    st.markdown("#### Corrientes adicionales")
 
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=2, step=1)
+    n_extra = st.number_input("Número de corrientes adicionales", min_value=0, max_value=6, value=2, step=1)
 
     for i in range(int(n_extra)):
         col1, col2 = st.columns([2, 1])
@@ -812,7 +813,7 @@ border:1px solid #1E2A3A;border-radius:8px">
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
                     '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
     else:
-        st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
+        st.info("Agrega al menos una corriente para calcular la alimentación a tolva.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -820,7 +821,7 @@ border:1px solid #1E2A3A;border-radius:8px">
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Calidad":
     st.markdown('<div class="section-header">◎  Restricciones de calidad por producto</div>', unsafe_allow_html=True)
-    st.caption("Cada producto tiene su propio set de restricciones. Elige o crea un producto y define sus rangos objetivo. "
+    st.caption("Cada producto tiene su propio set de restricciones. Elige, crea, renombra o elimina un producto y define sus rangos objetivo. "
                "Semáforo: Verde=OK · Amarillo=cerca del límite · Rojo=fuera de spec.")
 
     products = st.session_state.products
@@ -828,7 +829,7 @@ elif page == "Calidad":
 
     # ─── Selector / gestor de productos ───────────────────────────────────────
     st.markdown("#### Producto")
-    col_sel, col_new = st.columns([2, 1])
+    col_sel, col_new, col_edit = st.columns([2, 1, 1])
     with col_sel:
         if product_names:
             current = st.session_state.active_product
@@ -855,6 +856,27 @@ elif page == "Calidad":
                     st.session_state.active_product = new_name.strip()
                     st.success(f"Producto '{new_name}' creado.")
                     st.rerun()
+    with col_edit:
+        st.markdown("&nbsp;")
+        if active:
+            with st.popover("✏️ Renombrar"):
+                rename_val = st.text_input("Nuevo nombre", value=active, key="rename_product_input")
+                if st.button("Guardar nombre", type="primary", key="btn_rename_product"):
+                    rename_val = rename_val.strip()
+                    if not rename_val:
+                        st.error("El nombre no puede estar vacío.")
+                    elif rename_val != active and rename_val in products:
+                        st.error("Ya existe un producto con ese nombre.")
+                    else:
+                        # Reconstruye el diccionario preservando el orden y los valores
+                        new_products = {}
+                        for pname, pvals in st.session_state.products.items():
+                            key_name = rename_val if pname == active else pname
+                            new_products[key_name] = pvals
+                        st.session_state.products = new_products
+                        st.session_state.active_product = rename_val
+                        st.success(f"Producto renombrado a '{rename_val}'.")
+                        st.rerun()
 
     if not active:
         st.stop()
