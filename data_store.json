@@ -1,19 +1,6 @@
 {
   "crystals": [
     {
-      "nombre": "LDTP",
-      "lote": 1001,
-      "losa": "Losa 9B",
-      "ton": 15.0,
-      "K2SO4": 0.63,
-      "B": 0.01,
-      "NaCl": 0.39,
-      "Mg": 0.09,
-      "Na": 0.14,
-      "SO4": 0.35,
-      "Na2SO4": 0.05
-    },
-    {
       "nombre": "L",
       "lote": 1002,
       "losa": "Losa 9A",
