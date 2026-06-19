@@ -1,5 +1,19 @@
 {
-  "crystals": [],
+  "crystals": [
+    {
+      "nombre": "MFE",
+      "lote": 0,
+      "losa": "Losa 5",
+      "ton": 1000.0,
+      "K2SO4": 1.2,
+      "B": 0.006,
+      "NaCl": 6.0,
+      "Mg": 0.15,
+      "Na": 3.35,
+      "SO4": 1.25,
+      "Na2SO4": 1.2
+    }
+  ],
   "products": {
     "QROP KPLUS": {
       "K2SO4": {
