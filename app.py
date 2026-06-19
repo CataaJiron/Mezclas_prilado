@@ -555,12 +555,12 @@ elif page == "Dilución":
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    # Número de corrientes
-    n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
+    # Número de Agregados
+    n_streams = st.number_input("Número de Agregados", min_value=1, max_value=8, value=4, step=1)
 
     st.markdown("---")
 
-    # Inputs por corriente
+    # Inputs por Agregados
     stream_inputs = []
     cols_header = st.columns(n_streams + 1)
     with cols_header[0]:
@@ -568,7 +568,7 @@ elif page == "Dilución":
 
     for i in range(n_streams):
         with cols_header[i + 1]:
-            st.markdown(f"**Corriente {i+1}**")
+            st.markdown(f"**Agregados {i+1}**")
 
     # Fila: selección de cristal
     cols = st.columns(n_streams + 1)
@@ -592,7 +592,7 @@ elif page == "Dilución":
                                 key=f"dil_bald_{i}", label_visibility="collapsed")
             baldadas.append(b)
 
-    # Calcular masas y corrientes
+    # Calcular masas y Agregados
     streams = []
     for i in range(n_streams):
         if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
@@ -604,9 +604,9 @@ elif page == "Dilución":
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
-    # Tabla de leyes por corriente
+    # Tabla de leyes por Agregados
     st.markdown("---")
-    st.markdown("#### Tabla de leyes por corriente")
+    st.markdown("#### Tabla de leyes por Agregados")
 
     tabla_data = []
     for comp in ["Masa (Ton)"] + COMPS:
@@ -688,14 +688,14 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
     st.markdown('<div class="section-header">▽  Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como una corriente más. Ley final = Σ(masa × ley) / Σmasa")
+    st.caption("La Mezcla Dilución entra como una Agregados más. Ley final = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
     constraints = get_active_constraints()
     st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    # Corriente de Mezcla Dilución
+    # Agregados de Mezcla Dilución
     streams_tolva = []
 
     if mix:
@@ -718,12 +718,12 @@ elif page == "Tolva":
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
     st.markdown("---")
-    st.markdown("#### Corrientes adicionales")
+    st.markdown("#### Agregados adicionales")
 
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    n_extra = st.number_input("Número de corrientes adicionales", min_value=0, max_value=6, value=2, step=1)
+    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=2, step=1)
 
     for i in range(int(n_extra)):
         col1, col2 = st.columns([2, 1])
@@ -813,7 +813,7 @@ border:1px solid #1E2A3A;border-radius:8px">
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
                     '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
     else:
-        st.info("Agrega al menos una corriente para calcular la alimentación a tolva.")
+        st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
