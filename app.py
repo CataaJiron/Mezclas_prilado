@@ -274,6 +274,17 @@ def get_active_constraints():
     return products.get(active, {}) if active else {}
 
 
+def crystal_label(cr: dict) -> str:
+    """Etiqueta combinada 'Cristal - Losa' para distinguir lotes del mismo cristal."""
+    losa = cr.get("losa", "")
+    return f"{cr['nombre']} - {losa}" if losa else cr["nombre"]
+
+
+def build_crystal_lookup(crystals: list) -> tuple[list, dict]:
+    """Devuelve (lista de etiquetas 'Cristal - Losa', diccionario etiqueta -> cristal)."""
+    labels = [crystal_label(c) for c in crystals]
+    lookup = {crystal_label(c): c for c in crystals}
+    return labels, lookup
 
 
 # ─── MOTOR MATEMÁTICO ─────────────────────────────────────────────────────────
@@ -690,8 +701,7 @@ elif page == "Dilución":
         st.warning("Primero registra cristales en el módulo **Cristales**.")
         st.stop()
 
-    nombres_cristales = [c["nombre"] for c in crystals]
-    crystal_map = {c["nombre"]: c for c in crystals}
+    nombres_cristales, crystal_map = build_crystal_lookup(crystals)
 
     # Número de corrientes
     n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
@@ -837,8 +847,7 @@ elif page == "Tolva":
     constraints = get_active_constraints()
     st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    nombres_cristales = [c["nombre"] for c in crystals]
-    crystal_map = {c["nombre"]: c for c in crystals}
+    nombres_cristales, crystal_map = build_crystal_lookup(crystals)
 
     # ─── Incluir Mezcla Dilución como agregado fijo (en baldadas) ──────────────
     usar_mix = False
