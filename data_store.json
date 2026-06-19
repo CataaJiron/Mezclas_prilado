@@ -82,16 +82,16 @@
   "products": {
     "QROP KPLUS": {
       "K2SO4": {
-        "min": 18.0,
-        "max": 22.0
+        "min": 2.0,
+        "max": 3.0
       },
       "B": {
         "min": null,
         "max": 0.03
       },
       "NaCl": {
-        "min": null,
-        "max": null
+        "min": 2.5,
+        "max": 3.3
       },
       "Mg": {
         "min": null,
@@ -107,7 +107,7 @@
       },
       "Na2SO4": {
         "min": null,
-        "max": null
+        "max": 1.9
       }
     }
   },
