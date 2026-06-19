@@ -64,6 +64,19 @@
       "Na": 0.0,
       "SO4": 0.0,
       "Na2SO4": 0.0
+    },
+    {
+      "nombre": "MFE",
+      "lote": 920188,
+      "losa": "Loza 09E",
+      "ton": 493.0,
+      "K2SO4": 1.42,
+      "B": 0.03,
+      "NaCl": 10.32,
+      "Mg": 0.16,
+      "Na": 2.25,
+      "SO4": 0.79,
+      "Na2SO4": 0.0
     }
   ],
   "products": {
@@ -99,34 +112,5 @@
     }
   },
   "active_product": "QROP KPLUS",
-  "mix_dilucion": {
-    "total_masa": 30,
-    "law": {
-      "K2SO4": 17.396666666666665,
-      "B": 0.013333333333333334,
-      "NaCl": 12.873333333333333,
-      "Mg": 0.06333333333333332,
-      "Na": 0.16000000000000003,
-      "SO4": 9.57,
-      "Na2SO4": 0.016666666666666666
-    },
-    "streams": [
-      {
-        "nombre": "LDTP - Losa 9B",
-        "masa": 10
-      },
-      {
-        "nombre": "L - Losa 9A",
-        "masa": 10
-      },
-      {
-        "nombre": "SOP - Losa 3",
-        "masa": 5
-      },
-      {
-        "nombre": "MOP - Losa 1",
-        "masa": 5
-      }
-    ]
-  }
+  "mix_dilucion": null
 }
