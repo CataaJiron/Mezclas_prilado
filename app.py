@@ -377,7 +377,7 @@ with st.sidebar:
 # MÓDULO: DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════════
 if page == "Dashboard":
-    st.markdown('<div class="section-header">◈  Dashboard — Estado del proceso</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"> Dashboard — Estado del proceso</div>', unsafe_allow_html=True)
 
     mix = st.session_state.mix_dilucion
     law = mix["law"] if mix else None
