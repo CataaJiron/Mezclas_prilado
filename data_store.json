@@ -1,0 +1,102 @@
+{
+  "crystals": [
+    {
+      "nombre": "LDTP",
+      "lote": 1001,
+      "losa": "Losa 9B",
+      "ton": 15.0,
+      "K2SO4": 0.63,
+      "B": 0.01,
+      "NaCl": 0.39,
+      "Mg": 0.09,
+      "Na": 0.14,
+      "SO4": 0.35,
+      "Na2SO4": 0.05
+    },
+    {
+      "nombre": "L",
+      "lote": 1002,
+      "losa": "Losa 9A",
+      "ton": 10.0,
+      "K2SO4": 1.56,
+      "B": 0.03,
+      "NaCl": 0.73,
+      "Mg": 0.1,
+      "Na": 0.34,
+      "SO4": 0.86,
+      "Na2SO4": 0.0
+    },
+    {
+      "nombre": "MFE",
+      "lote": 1003,
+      "losa": "Losa 5",
+      "ton": 20.0,
+      "K2SO4": 1.42,
+      "B": 0.03,
+      "NaCl": 10.32,
+      "Mg": 0.16,
+      "Na": 2.25,
+      "SO4": 0.79,
+      "Na2SO4": 1.16
+    },
+    {
+      "nombre": "SOP",
+      "lote": 1004,
+      "losa": "Losa 3",
+      "ton": 5.0,
+      "K2SO4": 100.0,
+      "B": 0.0,
+      "NaCl": 0.0,
+      "Mg": 0.0,
+      "Na": 0.0,
+      "SO4": 55.0,
+      "Na2SO4": 0.0
+    },
+    {
+      "nombre": "MOP",
+      "lote": 1005,
+      "losa": "Losa 1",
+      "ton": 5.0,
+      "K2SO4": 0.0,
+      "B": 0.0,
+      "NaCl": 75.0,
+      "Mg": 0.0,
+      "Na": 0.0,
+      "SO4": 0.0,
+      "Na2SO4": 0.0
+    }
+  ],
+  "products": {
+    "QROP KPLUS": {
+      "K2SO4": {
+        "min": 18.0,
+        "max": 22.0
+      },
+      "B": {
+        "min": null,
+        "max": 0.03
+      },
+      "NaCl": {
+        "min": null,
+        "max": null
+      },
+      "Mg": {
+        "min": null,
+        "max": 0.23
+      },
+      "Na": {
+        "min": null,
+        "max": 0.7
+      },
+      "SO4": {
+        "min": null,
+        "max": 1.5
+      },
+      "Na2SO4": {
+        "min": null,
+        "max": null
+      }
+    }
+  },
+  "active_product": "QROP KPLUS"
+}
