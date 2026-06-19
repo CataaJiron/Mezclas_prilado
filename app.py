@@ -16,6 +16,7 @@ import requests
 # ─── CONFIGURACIÓN DE PÁGINA ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="Optimizador de Mezclas de Sales",
+    page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -61,7 +62,7 @@ def load_data_from_github() -> dict | None:
 
 
 def save_data_to_github(data: dict) -> bool:
-    """Escribe el estado actual (cristales y productos) en data_store.json en GitHub."""
+    """Escribe el estado actual (cristales, productos y mezcla dilución) en data_store.json en GitHub."""
     if not github_storage_enabled():
         return False
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/contents/{DATA_FILE_PATH}"
@@ -70,6 +71,7 @@ def save_data_to_github(data: dict) -> bool:
         "crystals": data.get("crystals", []),
         "products": data.get("products", {}),
         "active_product": data.get("active_product"),
+        "mix_dilucion": data.get("mix_dilucion"),
     }
     content_str = json.dumps(payload_data, indent=2, ensure_ascii=False)
     content_b64 = base64.b64encode(content_str.encode("utf-8")).decode("utf-8")
@@ -112,6 +114,7 @@ def persist_state():
         "crystals": st.session_state.get("crystals", []),
         "products": st.session_state.get("products", {}),
         "active_product": st.session_state.get("active_product"),
+        "mix_dilucion": st.session_state.get("mix_dilucion"),
     })
 
 # ─── ESTILOS PERSONALIZADOS ───────────────────────────────────────────────────
@@ -211,7 +214,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Agregados QUÍMICOS ─────────────────────────────────────────────────────
+# ─── COMPONENTES QUÍMICOS ─────────────────────────────────────────────────────
 COMPS = ["K2SO4", "B", "NaCl", "Mg", "Na", "SO4", "Na2SO4"]
 
 # ─── DATOS POR DEFECTO ────────────────────────────────────────────────────────
@@ -242,11 +245,13 @@ if "_data_loaded" not in st.session_state:
         st.session_state.crystals = remote.get("crystals") or DEFAULT_CRYSTALS.copy()
         st.session_state.products = remote.get("products") or {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
         st.session_state.active_product = remote.get("active_product") or list(st.session_state.products.keys())[0]
+        st.session_state.mix_dilucion = remote.get("mix_dilucion")
         st.session_state["_github_sha"] = remote.get("_sha")
     else:
         st.session_state.crystals = DEFAULT_CRYSTALS.copy()
         st.session_state.products = {k: v.copy() for k, v in DEFAULT_PRODUCTS.items()}
         st.session_state.active_product = list(st.session_state.products.keys())[0]
+        st.session_state.mix_dilucion = None
     st.session_state["_data_loaded"] = True
 
 if "crystals" not in st.session_state:
@@ -294,7 +299,7 @@ def calc_blend(streams: list[dict]) -> dict:
 
 def check_constraints(law: dict, constraints: dict) -> list[dict]:
     """
-    Evalúa cada Agregados contra sus restricciones.
+    Evalúa cada componente contra sus restricciones.
     Retorna lista de {comp, val, min, max, ok, near_limit, status}
     """
     results = []
@@ -336,11 +341,16 @@ def semaphore_html(status: str) -> str:
     return f'<span class="{cls}">{icon}</span>'
 
 
+BALDADA_TON = 5.0  # 1 baldada = 5 toneladas
+
+
 def optimize_blend(crystals: list, mix_dilucion: dict | None,
                    constraints: dict, total_target: float = 50.0,
                    use_mix: bool = True, n_iter: int = 3000) -> dict | None:
     """
     Optimizador: búsqueda aleatoria + refinamiento local (hill-climbing).
+    Trabaja en UNIDADES DE BALDADAS ENTERAS (1 baldada = 5 Ton), igual que en
+    el módulo de Dilución — así toda masa propuesta es siempre múltiplo de 5.
 
     Función objetivo:
       - Penaliza desviaciones fuera de rango × 1000
@@ -359,9 +369,12 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
     if n == 0:
         return None
 
-    def score(weights):
-        streams = [{"masa": w * total_target, "law": sources[i]["law"]}
-                   for i, w in enumerate(weights)]
+    # Número total de baldadas que conforman la masa objetivo (entero, redondeado)
+    n_baldadas_total = max(1, round(total_target / BALDADA_TON))
+
+    def score(baldadas):
+        streams = [{"masa": b * BALDADA_TON, "law": sources[i]["law"]}
+                   for i, b in enumerate(baldadas)]
         blend = calc_blend(streams)
         law = blend["law"]
         s = 0.0
@@ -380,53 +393,56 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
             elif cmax is not None:
                 s += ((v - cmax * 0.8) / max(cmax * 0.8, 1e-9)) ** 2 * 0.5
         # penaliza materiales activos
-        active = sum(1 for w in weights if w > 0.01)
+        active = sum(1 for b in baldadas if b > 0)
         s += active * 0.1
         return s
 
-    best_weights = None
+    def random_baldadas():
+        """Reparte n_baldadas_total baldadas enteras al azar entre las n fuentes."""
+        counts = [0] * n
+        for _ in range(n_baldadas_total):
+            counts[random.randrange(n)] += 1
+        return counts
+
+    best_baldadas = None
     best_score = float("inf")
 
-    # Búsqueda aleatoria
+    # Búsqueda aleatoria sobre combinaciones de baldadas enteras
     for _ in range(n_iter):
-        w = [random.random() for _ in range(n)]
-        total = sum(w)
-        w = [x / total for x in w]
-        sc = score(w)
+        b = random_baldadas()
+        sc = score(b)
         if sc < best_score:
             best_score = sc
-            best_weights = w[:]
+            best_baldadas = b[:]
 
-    # Refinamiento local (hill-climbing)
-    if best_weights:
-        current = best_weights[:]
+    # Refinamiento local: mueve UNA baldada entera de una fuente a otra
+    if best_baldadas:
+        current = best_baldadas[:]
         for _ in range(500):
             i, j = random.sample(range(n), 2)
-            delta = (random.random() - 0.5) * 0.1
-            nb = current[:]
-            nb[i] = max(0, nb[i] + delta)
-            nb[j] = max(0, nb[j] - delta)
-            total = sum(nb)
-            if total <= 0:
+            if current[i] <= 0:
                 continue
-            nb = [x / total for x in nb]
+            nb = current[:]
+            nb[i] -= 1
+            nb[j] += 1
             sc = score(nb)
             if sc < best_score:
                 best_score = sc
-                best_weights = nb[:]
+                best_baldadas = nb[:]
                 current = nb[:]
 
-    if not best_weights:
+    if not best_baldadas:
         return None
 
     streams = []
-    for i, w in enumerate(best_weights):
-        masa = w * total_target
-        if masa > 0.05:
+    for i, b in enumerate(best_baldadas):
+        if b > 0:
+            masa = b * BALDADA_TON
             streams.append({
                 "nombre": sources[i]["nombre"],
-                "masa": round(masa, 2),
-                "pct": round(w * 100, 1),
+                "baldadas": b,
+                "masa": masa,
+                "pct": round((masa / (n_baldadas_total * BALDADA_TON)) * 100, 1),
                 "law": sources[i]["law"],
             })
 
@@ -436,24 +452,25 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
         "total_masa": blend["total_masa"],
         "law": blend["law"],
         "score": best_score,
+        "n_baldadas_total": n_baldadas_total,
     }
 
 
 # ─── SIDEBAR: NAVEGACIÓN ──────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### Optimizador de Mezclas")
+    st.markdown("### ⚗️ Optimizador de Mezclas")
     st.markdown("---")
 
     page = st.radio(
         "Módulo",
         options=["Dashboard", "Cristales", "Dilución", "Tolva", "Calidad", "Optimizador"],
         format_func=lambda x: {
-            "Dashboard":   "Dashboard",
-            "Cristales":   "Base de cristales",
-            "Dilución":    "Mezcla de Dilución",
-            "Tolva":       "Alimentación Tolva",
-            "Calidad":     "Restricciones",
-            "Optimizador": "Optimizador",
+            "Dashboard":   "◈  Dashboard",
+            "Cristales":   "⬡  Base de cristales",
+            "Dilución":    "⟳  Mezcla de Dilución",
+            "Tolva":       "▽  Alimentación Tolva",
+            "Calidad":     "◎  Restricciones",
+            "Optimizador": "◆  Optimizador",
         }[x],
     )
 
@@ -465,7 +482,7 @@ with st.sidebar:
     if product_names:
         current = st.session_state.active_product
         idx = product_names.index(current) if current in product_names else 0
-        sel_product = st.selectbox("Producto a fabricar", product_names, index=idx, key="sidebar_product_sel")
+        sel_product = st.selectbox("📦 Producto a fabricar", product_names, index=idx, key="sidebar_product_sel")
         st.session_state.active_product = sel_product
 
     st.markdown("---")
@@ -473,7 +490,7 @@ with st.sidebar:
     # Estado rápido en sidebar
     mix = st.session_state.mix_dilucion
     if mix:
-        st.success(f"Dilución: {mix['total_masa']:.1f} Ton")
+        st.success(f"✓ Dilución: {mix['total_masa']:.1f} Ton")
         st.caption(f"K₂SO₄: {mix['law']['K2SO4']:.4f}%  |  Na: {mix['law']['Na']:.4f}%")
     else:
         st.info("Sin Dilución calculada")
@@ -489,7 +506,7 @@ with st.sidebar:
 # MÓDULO: DASHBOARD
 # ═══════════════════════════════════════════════════════════════════════════════
 if page == "Dashboard":
-    st.markdown('<div class="section-header"> Dashboard — Estado del proceso</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">◈  Dashboard — Estado del proceso</div>', unsafe_allow_html=True)
 
     mix = st.session_state.mix_dilucion
     law = mix["law"] if mix else None
@@ -540,7 +557,7 @@ if page == "Dashboard":
         with col_right:
             st.markdown("#### Ley química del producto")
             df_law = pd.DataFrame([
-                {"Agregados": c, "Ley (%)": f"{law.get(c, 0):.4f}"} for c in COMPS
+                {"Componente": c, "Ley (%)": f"{law.get(c, 0):.4f}"} for c in COMPS
             ])
             st.dataframe(df_law, hide_index=True, use_container_width=True)
 
@@ -554,7 +571,7 @@ if page == "Dashboard":
 # MÓDULO 1: CRISTALES
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Cristales":
-    st.markdown('<div class="section-header"> Base de datos de cristales</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">⬡  Base de datos de cristales</div>', unsafe_allow_html=True)
     st.caption("Registra las leyes químicas (% en masa) de cada material disponible en cancha, junto con su lote, losa y stock.")
 
     # Mostrar tabla actual
@@ -566,7 +583,7 @@ elif page == "Cristales":
             df_display[c] = df_display[c].apply(lambda x: f"{x:.3f}" if x > 0 else "—")
         if "ton" in df_display.columns:
             df_display["ton"] = df_display["ton"].apply(lambda x: f"{x:.1f}")
-        # Reordenar columnas: nombre, lote, losa, ton, luego Agregados
+        # Reordenar columnas: nombre, lote, losa, ton, luego componentes
         cols_order = ["nombre", "lote", "losa", "ton"] + COMPS
         cols_order = [c for c in cols_order if c in df_display.columns]
         df_display = df_display[cols_order]
@@ -658,7 +675,7 @@ elif page == "Cristales":
 # MÓDULO 2: MEZCLA DE DILUCIÓN
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Dilución":
-    st.markdown('<div class="section-header"> Mezcla de Dilución — Etapa 1</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">⟳  Mezcla de Dilución — Etapa 1</div>', unsafe_allow_html=True)
     st.caption("1 baldada = 5 toneladas  |  Ley mezcla = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
@@ -669,20 +686,20 @@ elif page == "Dilución":
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    # Número de Agregados
-    n_streams = st.number_input("Número de Agregados", min_value=1, max_value=8, value=4, step=1)
+    # Número de corrientes
+    n_streams = st.number_input("Número de corrientes", min_value=1, max_value=8, value=4, step=1)
 
     st.markdown("---")
 
-    # Inputs por Agregados
+    # Inputs por corriente
     stream_inputs = []
     cols_header = st.columns(n_streams + 1)
     with cols_header[0]:
-        st.markdown("**Agregados**")
+        st.markdown("**Componente**")
 
     for i in range(n_streams):
         with cols_header[i + 1]:
-            st.markdown(f"**Agregado {i+1}**")
+            st.markdown(f"**Corriente {i+1}**")
 
     # Fila: selección de cristal
     cols = st.columns(n_streams + 1)
@@ -706,7 +723,7 @@ elif page == "Dilución":
                                 key=f"dil_bald_{i}", label_visibility="collapsed")
             baldadas.append(b)
 
-    # Calcular masas y Agregados
+    # Calcular masas y corrientes
     streams = []
     for i in range(n_streams):
         if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
@@ -718,13 +735,13 @@ elif page == "Dilución":
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
-    # Tabla de leyes por Agregados
+    # Tabla de leyes por corriente
     st.markdown("---")
-    st.markdown("#### Tabla de leyes por Agregados")
+    st.markdown("#### Tabla de leyes por corriente")
 
     tabla_data = []
     for comp in ["Masa (Ton)"] + COMPS:
-        row = {"Agregados": comp}
+        row = {"Componente": comp}
         for i in range(n_streams):
             if selecciones[i] != "— Ninguno —" and baldadas[i] > 0:
                 cr = crystal_map[selecciones[i]]
@@ -752,7 +769,7 @@ elif page == "Dilución":
     if streams:
         blend = calc_blend(streams)
 
-        st.markdown("#### Mezcla Dilución Resultante")
+        st.markdown("#### ✅ Mezcla Dilución Resultante")
 
         # KPIs
         kpi_cols = st.columns(4)
@@ -767,7 +784,7 @@ elif page == "Dilución":
 
         # Tabla completa de ley
         df_result = pd.DataFrame([
-            {"Agregados": c, "Ley mezcla (%)": f"{blend['law'][c]:.4f}"} for c in COMPS
+            {"Componente": c, "Ley mezcla (%)": f"{blend['law'][c]:.4f}"} for c in COMPS
         ])
         col_res, col_form = st.columns([1, 1])
         with col_res:
@@ -781,17 +798,21 @@ elif page == "Dilución":
 <strong>Auditoría del cálculo</strong><br><br>
 Masa total = {blend['total_masa']:.1f} Ton<br><br>
 Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
-<em>Aplicar misma fórmula a cada Agregados</em>
+<em>Aplicar misma fórmula a cada componente</em>
 </div>
 """, unsafe_allow_html=True)
 
-        # Guardar en session_state
+        # Guardar en session_state (memoria de la sesión actual)
         st.session_state.mix_dilucion = {
             "total_masa": blend["total_masa"],
             "law": blend["law"],
             "streams": [{"nombre": s["nombre"], "masa": s["masa"]} for s in streams],
         }
-        st.success("✓ Mezcla Dilución guardada. Disponible en módulo **Tolva** y **Optimizador**.")
+        st.success("✓ Mezcla Dilución calculada. Disponible en módulo **Tolva** y **Optimizador**.")
+
+        if st.button("💾 Guardar esta Mezcla Dilución (persistente)", type="primary", key="btn_save_dilucion"):
+            persist_state()
+            st.success("✓ Mezcla Dilución guardada permanentemente. No se perderá al recargar o cambiar de página.")
     else:
         st.info("Selecciona al menos un cristal con baldadas > 0 para calcular.")
         st.session_state.mix_dilucion = None
@@ -801,59 +822,135 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # MÓDULO 3: ALIMENTACIÓN A TOLVA
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
-    st.markdown('<div class="section-header"> Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como una Agregados más. Ley final = Σ(masa × ley) / Σmasa")
+    st.markdown('<div class="section-header">▽  Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
+    st.caption("La Mezcla Dilución entra como un Agregado más. Ley final = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
     constraints = get_active_constraints()
     st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    # Agregados de Mezcla Dilución
-    streams_tolva = []
+    nombres_cristales = [c["nombre"] for c in crystals]
+    crystal_map = {c["nombre"]: c for c in crystals}
 
+    # ─── Incluir Mezcla Dilución como agregado fijo ────────────────────────────
+    usar_mix = False
     if mix:
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            usar_mix = st.checkbox(
-                f"Incluir Mezcla Dilución ({mix['total_masa']:.1f} Ton)",
-                value=True
-            )
-        with col_b:
-            st.markdown('<span style="color:#00B4D8;font-size:11px;font-weight:700">← ETAPA 1</span>',
-                        unsafe_allow_html=True)
-        if usar_mix:
-            streams_tolva.append({
-                "nombre": "Mezcla Dilución",
-                "masa": mix["total_masa"],
-                "law": mix["law"],
-            })
+        usar_mix = st.checkbox(
+            f"Incluir Mezcla Dilución como Agregado 1 ({mix['total_masa']:.1f} Ton)",
+            value=True
+        )
     else:
         st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
 
     st.markdown("---")
-    st.markdown("#### Agregados adicionales")
 
-    nombres_cristales = [c["nombre"] for c in crystals]
-    crystal_map = {c["nombre"]: c for c in crystals}
+    # Número de agregados adicionales (cristales sueltos)
+    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=4, step=1)
+    n_extra = int(n_extra)
+    n_total_cols = (1 if usar_mix else 0) + n_extra
 
-    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=2, step=1)
+    if n_total_cols == 0:
+        st.info("Activa la Mezcla Dilución o agrega al menos un Agregado adicional para calcular.")
+        st.stop()
 
-    for i in range(int(n_extra)):
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            sel = st.selectbox(f"Material {i+1}", ["— Ninguno —"] + nombres_cristales, key=f"tolva_mat_{i}")
-        with col2:
-            masa = st.number_input(f"Masa (Ton)", min_value=0.0, step=1.0, value=0.0, key=f"tolva_masa_{i}")
-        if sel != "— Ninguno —" and masa > 0:
-            cr = crystal_map[sel]
+    # ─── Grilla de encabezados ──────────────────────────────────────────────────
+    col_labels = []
+    if usar_mix:
+        col_labels.append("Mezcla Dilución")
+    col_labels += [f"Agregado {i+1}" for i in range(n_extra)]
+
+    cols_header = st.columns(n_total_cols + 1)
+    with cols_header[0]:
+        st.markdown("**Agregados**")
+    for i, label in enumerate(col_labels):
+        with cols_header[i + 1]:
+            st.markdown(f"**{label}**")
+
+    # ─── Fila: selección de material (la Mezcla Dilución es fija) ──────────────
+    cols = st.columns(n_total_cols + 1)
+    with cols[0]:
+        st.markdown("<small style='color:#6B82A0'>Material</small>", unsafe_allow_html=True)
+    selecciones_extra = []
+    offset = 0
+    if usar_mix:
+        with cols[1]:
+            st.markdown("<span style='color:#00B4D8;font-size:12px;font-weight:600'>← Etapa 1</span>",
+                       unsafe_allow_html=True)
+        offset = 1
+    for i in range(n_extra):
+        with cols[offset + i + 1]:
+            sel = st.selectbox("", ["— Ninguno —"] + nombres_cristales,
+                               key=f"tolva_mat_{i}", label_visibility="collapsed")
+            selecciones_extra.append(sel)
+
+    # ─── Fila: masa (Ton) ───────────────────────────────────────────────────────
+    cols = st.columns(n_total_cols + 1)
+    with cols[0]:
+        st.markdown("<small style='color:#6B82A0'>Masa (Ton)</small>", unsafe_allow_html=True)
+    masas_extra = []
+    if usar_mix:
+        with cols[1]:
+            st.markdown(f"<div style='padding:6px 0;font-family:monospace;color:#00B4D8'>{mix['total_masa']:.1f}</div>",
+                       unsafe_allow_html=True)
+    for i in range(n_extra):
+        with cols[offset + i + 1]:
+            m = st.number_input("", min_value=0.0, step=1.0, value=0.0,
+                                key=f"tolva_masa_{i}", label_visibility="collapsed")
+            masas_extra.append(m)
+
+    # ─── Construir lista de agregados activos ──────────────────────────────────
+    streams_tolva = []
+    if usar_mix:
+        streams_tolva.append({"nombre": "Mezcla Dilución", "masa": mix["total_masa"], "law": mix["law"]})
+    for i in range(n_extra):
+        if selecciones_extra[i] != "— Ninguno —" and masas_extra[i] > 0:
+            cr = crystal_map[selecciones_extra[i]]
             streams_tolva.append({
-                "nombre": sel,
-                "masa": masa,
+                "nombre": selecciones_extra[i],
+                "masa": masas_extra[i],
                 "law": {c: cr.get(c, 0) for c in COMPS},
             })
 
-    # Cálculo
+    # ─── Tabla de leyes por agregado (formato grilla, igual a Dilución) ────────
+    st.markdown("---")
+    st.markdown("#### Tabla de leyes por Agregado")
+
+    def _agregado_law(i):
+        """Devuelve (nombre, masa, law) para la columna i de la grilla, o None si vacía."""
+        if usar_mix and i == 0:
+            return ("Mezcla Dilución", mix["total_masa"], mix["law"])
+        j = i - (1 if usar_mix else 0)
+        if 0 <= j < n_extra and selecciones_extra[j] != "— Ninguno —" and masas_extra[j] > 0:
+            cr = crystal_map[selecciones_extra[j]]
+            return (selecciones_extra[j], masas_extra[j], {c: cr.get(c, 0) for c in COMPS})
+        return None
+
+    tabla_data = []
+    for comp in ["Masa (Ton)"] + COMPS:
+        row = {"Componente": comp}
+        for i in range(n_total_cols):
+            info = _agregado_law(i)
+            col_key = f"{col_labels[i]}"
+            if info:
+                _, masa_i, law_i = info
+                row[col_key] = f"{masa_i:.1f}" if comp == "Masa (Ton)" else f"{law_i.get(comp,0):.4f}"
+            else:
+                row[col_key] = "—"
+        if streams_tolva:
+            blend_preview = calc_blend(streams_tolva)
+            if comp == "Masa (Ton)":
+                row["⟶ Tolva Final"] = f"{blend_preview['total_masa']:.1f}"
+            else:
+                row["⟶ Tolva Final"] = f"{blend_preview['law'].get(comp,0):.4f}"
+        else:
+            row["⟶ Tolva Final"] = "—"
+        tabla_data.append(row)
+
+    df_tabla = pd.DataFrame(tabla_data)
+    st.dataframe(df_tabla, hide_index=True, use_container_width=True)
+
+    # ─── Cálculo y resultados ───────────────────────────────────────────────────
     st.markdown("---")
     if streams_tolva:
         blend_tolva = calc_blend(streams_tolva)
@@ -861,8 +958,7 @@ elif page == "Tolva":
         all_ok = all(c["ok"] for c in checks)
         fails = sum(1 for c in checks if not c["ok"])
 
-        # KPIs
-        st.markdown("#### Alimentación Final a Tolva")
+        st.markdown("#### ✅ Alimentación Final a Tolva")
         k1, k2, k3, k4, k5 = st.columns(5)
         with k1:
             st.metric("Masa total", f"{blend_tolva['total_masa']:.1f} Ton")
@@ -878,24 +974,7 @@ elif page == "Tolva":
             else:
                 st.metric("Calidad", f"✗ {fails} falla(s)")
 
-        # Tabla de materiales
-        st.markdown("#### Composición por material")
-        rows = []
-        for s in streams_tolva:
-            row = {"Material": s["nombre"], "Masa (Ton)": f"{s['masa']:.1f}"}
-            for c in COMPS:
-                row[c] = f"{s['law'].get(c,0):.4f}"
-            rows.append(row)
-        # Fila total
-        total_row = {"Material": "TOTAL", "Masa (Ton)": f"{blend_tolva['total_masa']:.1f}"}
-        for c in COMPS:
-            total_row[c] = f"{blend_tolva['law'].get(c,0):.4f}"
-        rows.append(total_row)
-
-        df_tolva = pd.DataFrame(rows)
-        st.dataframe(df_tolva, hide_index=True, use_container_width=True)
-
-        # Semáforos
+        # Verificación de calidad (semáforos)
         st.markdown("#### Verificación de calidad")
         cols_sem = st.columns(len(COMPS))
         for i, ch in enumerate(checks):
@@ -922,19 +1001,19 @@ border:1px solid #1E2A3A;border-radius:8px">
             st.success("✅ Mezcla APROBADA — Cumple todas las restricciones de calidad.")
         else:
             fallidas = [c["comp"] for c in checks if not c["ok"]]
-            st.error(f"❌ Mezcla RECHAZADA — Agregados fuera de especificación: {', '.join(fallidas)}")
+            st.error(f"❌ Mezcla RECHAZADA — Componentes fuera de especificación: {', '.join(fallidas)}")
 
         st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
-                    '— aplicado a cada Agregados por separado</div>', unsafe_allow_html=True)
+                    '— aplicado a cada componente por separado</div>', unsafe_allow_html=True)
     else:
-        st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
+        st.info("Agrega al menos un Agregado con masa > 0 para calcular la alimentación a tolva.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 4: RESTRICCIONES
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Calidad":
-    st.markdown('<div class="section-header"> Restricciones de calidad por producto</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">◎  Restricciones de calidad por producto</div>', unsafe_allow_html=True)
     st.caption("Cada producto tiene su propio set de restricciones. Elige, crea, renombra o elimina un producto y define sus rangos objetivo. "
                "Semáforo: Verde=OK · Amarillo=cerca del límite · Rojo=fuera de spec.")
 
@@ -1067,7 +1146,7 @@ elif page == "Calidad":
     rows = []
     for comp, c in st.session_state.products[active].items():
         rows.append({
-            "Agregados": comp,
+            "Componente": comp,
             "Mínimo (%)": f"{c['min']:.3f}" if c.get("min") is not None else "Sin restricción",
             "Máximo (%)": f"{c['max']:.3f}" if c.get("max") is not None else "Sin restricción",
         })
@@ -1079,7 +1158,7 @@ elif page == "Calidad":
         st.markdown("#### Comparación entre productos")
         comp_rows = []
         for comp in COMPS:
-            row = {"Agregados": comp}
+            row = {"Componente": comp}
             for pname in product_names:
                 c = st.session_state.products[pname].get(comp, {})
                 rng = []
@@ -1111,7 +1190,10 @@ elif page == "Optimizador":
     # Parámetros
     col1, col2, col3 = st.columns(3)
     with col1:
-        total_target = st.number_input("Masa total objetivo (Ton)", min_value=1.0, value=50.0, step=5.0)
+        n_baldadas_input = st.number_input("Masa total objetivo (en baldadas)", min_value=1, value=10, step=1,
+                                           help="Cada baldada equivale a 5 Ton. El resultado siempre usará baldadas enteras.")
+        total_target = n_baldadas_input * BALDADA_TON
+        st.caption(f"= {total_target:.0f} Ton ({n_baldadas_input} baldadas × 5 Ton)")
     with col2:
         usar_mix = st.checkbox("Incluir Mezcla Dilución", value=bool(mix),
                                disabled=not bool(mix))
@@ -1122,15 +1204,17 @@ elif page == "Optimizador":
 
     with st.expander("📐  Detalles del algoritmo"):
         st.markdown(f"""
-**Búsqueda aleatoria + refinamiento local (Hill Climbing)**
+**Búsqueda aleatoria + refinamiento local (Hill Climbing), en baldadas enteras**
 
-1. **{n_iter} iteraciones aleatorias**: genera vectores de peso normalizados (suma = 1)
-2. **500 pasos de refinamiento**: transfiere masa entre pares de fuentes para bajar el score
+Toda masa propuesta es siempre un múltiplo de **5 Ton** (1 baldada), igual que en el módulo de Dilución — no se generan masas fraccionarias.
+
+1. **{n_iter} iteraciones aleatorias**: reparte {n_baldadas_input} baldadas enteras al azar entre los materiales disponibles
+2. **500 pasos de refinamiento**: mueve 1 baldada entera de un material a otro si eso mejora el resultado
 3. **Función objetivo**:
    - Penalización fuera de rango: `((v - límite) / límite)² × 1000`
    - Desviación del punto medio: `× 0.5`
-   - Materiales activos (>1%): `× 0.1` (prefiere mezclas simples)
-4. Materiales con peso < 0.1% son excluidos del resultado final
+   - Materiales activos: `× 0.1` (prefiere mezclas simples)
+4. Materiales con 0 baldadas asignadas quedan excluidos del resultado final
         """)
 
     if st.button("▶  Buscar mezcla óptima", type="primary"):
@@ -1166,18 +1250,20 @@ elif page == "Optimizador":
                 st.metric("Calidad", "✓ Cumple" if all_ok else f"✗ {len(fails)} falla(s)")
 
             # Tabla de composición
-            st.markdown("#### Composición propuesta")
+            st.markdown("#### Composición propuesta (en baldadas enteras)")
             rows = []
             for s in result["streams"]:
                 row = {
                     "Material": s["nombre"],
-                    "Masa (Ton)": f"{s['masa']:.2f}",
+                    "Baldadas": s.get("baldadas", round(s["masa"] / BALDADA_TON)),
+                    "Masa (Ton)": f"{s['masa']:.1f}",
                     "% participación": f"{s['pct']:.1f}%",
                 }
                 for c in COMPS:
                     row[c] = f"{s['law'].get(c,0):.4f}"
                 rows.append(row)
             st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
 
             # Semáforos
             st.markdown("#### Verificación vs restricciones")
@@ -1205,7 +1291,7 @@ border:1px solid #1E2A3A;border-radius:8px">
                 st.success("✅ Mezcla APROBADA — Cumple todas las restricciones con la composición propuesta.")
             else:
                 st.warning(
-                    f"⚠️ No se encontró combinación perfecta. Agregados fuera de spec: {', '.join(fails)}. "
+                    f"⚠️ No se encontró combinación perfecta. Componentes fuera de spec: {', '.join(fails)}. "
                     "Considera ampliar las restricciones o agregar más materiales."
                 )
 
