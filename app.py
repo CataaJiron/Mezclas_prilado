@@ -801,133 +801,196 @@ Ley_K2SO4 = ({formula_lines}) / {blend['total_masa']:.1f}<br><br>
 # MÓDULO 3: ALIMENTACIÓN A TOLVA
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Tolva":
-    st.markdown('<div class="section-header"> Alimentación a Tolva — Etapa 2</div>', unsafe_allow_html=True)
-    st.caption("La Mezcla Dilución entra como una Agregados más. Ley final = Σ(masa × ley) / Σmasa")
+
+    st.markdown('<div class="section-header"> Alimentación a Tolva — Etapa 2</div>',
+                unsafe_allow_html=True)
+
+    st.caption("1 baldada = 5 toneladas | Ley mezcla = Σ(masa × ley) / Σmasa")
 
     crystals = st.session_state.crystals
-    mix = st.session_state.mix_dilucion
-    constraints = get_active_constraints()
-    st.info(f"📦 Producto activo: **{st.session_state.active_product}** — cambia el producto desde el menú lateral.")
 
-    # Agregados de Mezcla Dilución
-    streams_tolva = []
+    if not crystals:
+        st.warning("Primero registra cristales en el módulo Cristales.")
+        st.stop()
 
-    if mix:
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            usar_mix = st.checkbox(
-                f"Incluir Mezcla Dilución ({mix['total_masa']:.1f} Ton)",
-                value=True
-            )
-        with col_b:
-            st.markdown('<span style="color:#00B4D8;font-size:11px;font-weight:700">← ETAPA 1</span>',
-                        unsafe_allow_html=True)
-        if usar_mix:
-            streams_tolva.append({
-                "nombre": "Mezcla Dilución",
-                "masa": mix["total_masa"],
-                "law": mix["law"],
-            })
-    else:
-        st.warning("No hay Mezcla Dilución calculada. Ve al módulo **Dilución** para calcularla.")
-
-    st.markdown("---")
-    st.markdown("#### Agregados adicionales")
 
     nombres_cristales = [c["nombre"] for c in crystals]
     crystal_map = {c["nombre"]: c for c in crystals}
 
-    n_extra = st.number_input("Número de Agregados adicionales", min_value=0, max_value=6, value=2, step=1)
 
-    for i in range(int(n_extra)):
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            sel = st.selectbox(f"Material {i+1}", ["— Ninguno —"] + nombres_cristales, key=f"tolva_mat_{i}")
-        with col2:
-            masa = st.number_input(f"Masa (Ton)", min_value=0.0, step=1.0, value=0.0, key=f"tolva_masa_{i}")
-        if sel != "— Ninguno —" and masa > 0:
-            cr = crystal_map[sel]
-            streams_tolva.append({
-                "nombre": sel,
-                "masa": masa,
-                "law": {c: cr.get(c, 0) for c in COMPS},
+    # Número de agregados
+    n_streams = st.number_input(
+        "Número de Agregados",
+        min_value=1,
+        max_value=8,
+        value=4,
+        step=1,
+        key="tolva_num_streams"
+    )
+
+
+    st.markdown("---")
+
+
+    # Encabezados
+    cols_header = st.columns(n_streams+1)
+
+    with cols_header[0]:
+        st.markdown("**Agregados**")
+
+
+    for i in range(n_streams):
+        with cols_header[i+1]:
+            st.markdown(f"**Agregado {i+1}**")
+
+
+    # Selección cristal
+    cols = st.columns(n_streams+1)
+
+    with cols[0]:
+        st.markdown(
+            "<small style='color:#6B82A0'>Cristal</small>",
+            unsafe_allow_html=True
+        )
+
+
+    selecciones=[]
+
+    for i in range(n_streams):
+
+        with cols[i+1]:
+
+            sel = st.selectbox(
+                "",
+                ["— Ninguno —"] + nombres_cristales,
+                key=f"tolva_cristal_{i}",
+                label_visibility="collapsed"
+            )
+
+            selecciones.append(sel)
+
+
+
+    # Baldadas
+    cols = st.columns(n_streams+1)
+
+    with cols[0]:
+        st.markdown(
+            "<small style='color:#6B82A0'>Baldadas</small>",
+            unsafe_allow_html=True
+        )
+
+
+    baldadas=[]
+
+    for i in range(n_streams):
+
+        with cols[i+1]:
+
+            b = st.number_input(
+                "",
+                min_value=0,
+                step=1,
+                value=0,
+                key=f"tolva_bald_{i}",
+                label_visibility="collapsed"
+            )
+
+            baldadas.append(b)
+
+
+
+    # Construcción mezcla
+    streams=[]
+
+
+    for i in range(n_streams):
+
+        if selecciones[i] != "— Ninguno —" and baldadas[i]>0:
+
+            cr = crystal_map[selecciones[i]]
+
+            masa=baldadas[i]*5
+
+            streams.append({
+                "nombre":selecciones[i],
+                "masa":masa,
+                "law":{
+                    c:cr.get(c,0)
+                    for c in COMPS
+                }
             })
 
-    # Cálculo
+
+
     st.markdown("---")
-    if streams_tolva:
-        blend_tolva = calc_blend(streams_tolva)
-        checks = check_constraints(blend_tolva["law"], constraints)
-        all_ok = all(c["ok"] for c in checks)
-        fails = sum(1 for c in checks if not c["ok"])
 
-        # KPIs
-        st.markdown("#### Alimentación Final a Tolva")
-        k1, k2, k3, k4, k5 = st.columns(5)
-        with k1:
-            st.metric("Masa total", f"{blend_tolva['total_masa']:.1f} Ton")
-        with k2:
-            st.metric("K₂SO₄", f"{blend_tolva['law']['K2SO4']:.4f} %")
-        with k3:
-            st.metric("Na", f"{blend_tolva['law']['Na']:.4f} %")
-        with k4:
-            st.metric("Mg", f"{blend_tolva['law']['Mg']:.4f} %")
-        with k5:
-            if all_ok:
-                st.metric("Calidad", "✓ Aprobado")
-            else:
-                st.metric("Calidad", f"✗ {fails} falla(s)")
+    if streams:
 
-        # Tabla de materiales
-        st.markdown("#### Composición por material")
-        rows = []
-        for s in streams_tolva:
-            row = {"Material": s["nombre"], "Masa (Ton)": f"{s['masa']:.1f}"}
-            for c in COMPS:
-                row[c] = f"{s['law'].get(c,0):.4f}"
-            rows.append(row)
-        # Fila total
-        total_row = {"Material": "TOTAL", "Masa (Ton)": f"{blend_tolva['total_masa']:.1f}"}
-        for c in COMPS:
-            total_row[c] = f"{blend_tolva['law'].get(c,0):.4f}"
-        rows.append(total_row)
+        blend = calc_blend(streams)
 
-        df_tolva = pd.DataFrame(rows)
-        st.dataframe(df_tolva, hide_index=True, use_container_width=True)
 
-        # Semáforos
-        st.markdown("#### Verificación de calidad")
-        cols_sem = st.columns(len(COMPS))
-        for i, ch in enumerate(checks):
-            with cols_sem[i]:
-                constr = constraints.get(ch["comp"], {})
-                rng = ""
-                if constr.get("min") is not None:
-                    rng += f"≥{constr['min']} "
-                if constr.get("max") is not None:
-                    rng += f"≤{constr['max']}"
-                st.markdown(f"""
-<div style="text-align:center;padding:10px 6px;background:#161C28;
-border:1px solid #1E2A3A;border-radius:8px">
-<div style="font-size:11px;color:#6B82A0;margin-bottom:4px">{ch['comp']}</div>
-<div style="font-size:16px;font-weight:700;font-family:monospace;color:#E8EFF8">{ch['val']:.4f}%</div>
-<div style="font-size:10px;color:#3A4F6A;margin-bottom:4px">{rng or 'Sin restricción'}</div>
-{semaphore_html(ch['status'])}
-</div>
-""", unsafe_allow_html=True)
+        st.markdown("#### Alimentación Tolva Resultante")
 
-        # Conclusión
-        st.markdown("---")
-        if all_ok:
-            st.success("✅ Mezcla APROBADA — Cumple todas las restricciones de calidad.")
-        else:
-            fallidas = [c["comp"] for c in checks if not c["ok"]]
-            st.error(f"❌ Mezcla RECHAZADA — Agregados fuera de especificación: {', '.join(fallidas)}")
 
-        st.markdown('<div class="formula-box">Ley_final = Σ(masa_i × ley_i) / Σ masa_i  '
-                    '— aplicado a cada Agregados por separado</div>', unsafe_allow_html=True)
+        kpi_cols=st.columns(4)
+
+        with kpi_cols[0]:
+            st.metric(
+                "Masa total",
+                f"{blend['total_masa']:.1f} Ton"
+            )
+
+        with kpi_cols[1]:
+            st.metric(
+                "K₂SO₄",
+                f"{blend['law']['K2SO4']:.4f}%"
+            )
+
+        with kpi_cols[2]:
+            st.metric(
+                "Na",
+                f"{blend['law']['Na']:.4f}%"
+            )
+
+        with kpi_cols[3]:
+            st.metric(
+                "B",
+                f"{blend['law']['B']:.4f}%"
+            )
+
+
+
+        df_result=pd.DataFrame([
+            {
+                "Agregado":c,
+                "Ley mezcla (%)":f"{blend['law'][c]:.4f}"
+            }
+            for c in COMPS
+        ])
+
+
+        st.dataframe(
+            df_result,
+            hide_index=True,
+            use_container_width=True
+        )
+
+
+        st.session_state.mix_tolva={
+            "total_masa":blend["total_masa"],
+            "law":blend["law"],
+            "streams":streams
+        }
+
+
+        st.success("✓ Alimentación Tolva calculada.")
+
     else:
-        st.info("Agrega al menos una Agregados para calcular la alimentación a tolva.")
+
+        st.info(
+            "Selecciona al menos un cristal con baldadas > 0"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
