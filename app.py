@@ -14,7 +14,6 @@ import json
 # ─── CONFIGURACIÓN DE PÁGINA ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="Optimizador de Mezclas de Sales",
-    page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
