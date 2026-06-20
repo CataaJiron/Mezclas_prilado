@@ -100,24 +100,28 @@
   },
   "active_product": "QROP KPLUS",
   "mix_dilucion": {
-    "total_masa": 20,
+    "total_masa": 25,
     "law": {
-      "K2SO4": 1.2,
-      "B": 0.006,
-      "NaCl": 3.18,
-      "Mg": 0.10500000000000001,
-      "Na": 1.85,
-      "SO4": 1.1,
-      "Na2SO4": 0.85
+      "K2SO4": 20.61,
+      "B": 0.01,
+      "NaCl": 1.84,
+      "Mg": 0.072,
+      "Na": 0.784,
+      "SO4": 11.338,
+      "Na2SO4": 0.0
     },
     "streams": [
       {
-        "nombre": "MFE - Losa 5",
-        "masa": 10
+        "nombre": "SOP",
+        "masa": 5
       },
       {
-        "nombre": "LDTP - Losa 5",
-        "masa": 10
+        "nombre": "L DTP",
+        "masa": 15
+      },
+      {
+        "nombre": "MFE",
+        "masa": 5
       }
     ]
   }
