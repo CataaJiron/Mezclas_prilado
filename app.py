@@ -677,15 +677,18 @@ elif page == "Cristales":
             idx = mapa_idx[sel_etiqueta]
             cr = crystals[idx]
 
+            # Las keys incluyen el índice del cristal seleccionado: así, al cambiar
+            # de cristal en el desplegable, los campos se "refrescan" con los datos
+            # correctos en vez de mantener lo que había quedado escrito antes.
             id_cols = st.columns(4)
             with id_cols[0]:
-                nombre_edit = st.text_input("Nombre del cristal", value=cr["nombre"], key="edit_nombre_input")
+                nombre_edit = st.text_input("Nombre del cristal", value=cr["nombre"], key=f"edit_nombre_input_{idx}")
             with id_cols[1]:
-                lote = st.number_input("N° Lote", min_value=0, step=1, value=int(cr.get("lote", 0)), key="edit_lote")
+                lote = st.number_input("N° Lote", min_value=0, step=1, value=int(cr.get("lote", 0)), key=f"edit_lote_{idx}")
             with id_cols[2]:
-                losa = st.text_input("Losa", value=cr.get("losa", ""), key="edit_losa")
+                losa = st.text_input("Losa", value=cr.get("losa", ""), key=f"edit_losa_{idx}")
             with id_cols[3]:
-                ton = st.number_input("Ton (stock disponible)", min_value=0.0, step=0.5, value=float(cr.get("ton", 0)), key="edit_ton")
+                ton = st.number_input("Ton (stock disponible)", min_value=0.0, step=0.5, value=float(cr.get("ton", 0)), key=f"edit_ton_{idx}")
 
             cols = st.columns(4)
             vals = {}
@@ -693,7 +696,7 @@ elif page == "Cristales":
                 with cols[i % 4]:
                     vals[comp] = st.number_input(f"{comp} (%)", value=float(cr.get(comp, 0)),
                                                   min_value=0.0, step=0.001, format="%.3f",
-                                                  key=f"edit_{comp}")
+                                                  key=f"edit_{comp}_{idx}")
             if st.button("✓ Actualizar cristal", type="primary"):
                 st.session_state.crystals[idx] = {
                     "nombre": nombre_edit.strip(), "lote": int(lote), "losa": losa.strip(), "ton": float(ton), **vals
