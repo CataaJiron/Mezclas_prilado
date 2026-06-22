@@ -381,13 +381,17 @@ BALDADA_TON = 5.0  # 1 baldada = 5 toneladas
 
 def optimize_blend(crystals: list, mix_dilucion: dict | None,
                    constraints: dict, total_target: float = 50.0,
-                   use_mix: bool = True, n_iter: int = 3000) -> dict | None:
+                   use_mix: bool = True) -> dict | None:
     """
-    Optimizador: búsqueda aleatoria + refinamiento local (hill-climbing).
-    Trabaja en UNIDADES DE BALDADAS ENTERAS (1 baldada = 5 Ton), igual que en
-    el módulo de Dilución — así toda masa propuesta es siempre múltiplo de 5.
+    Optimizador EXACTO y DETERMINÍSTICO (sin azar).
 
-    Función objetivo:
+    Recorre matemáticamente TODAS las formas posibles de repartir N baldadas
+    enteras entre los materiales disponibles (técnica de "composición de un
+    entero en k partes"), evaluando cada una contra la función de calidad.
+    Dado el mismo problema, siempre entrega exactamente el mismo resultado,
+    y el camino que siguió es completamente reconstruible.
+
+    Función de calidad (menor = mejor):
       - Penaliza desviaciones fuera de rango × 1000
       - Penaliza desviación del punto medio × 0.5
       - Penaliza número de materiales activos × 0.1
@@ -404,7 +408,6 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
     if n == 0:
         return None
 
-    # Número total de baldadas que conforman la masa objetivo (entero, redondeado)
     n_baldadas_total = max(1, round(total_target / BALDADA_TON))
 
     def score(baldadas):
@@ -427,46 +430,42 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
                 s += ((v - mid) / max(mid, 1e-9)) ** 2 * 0.5
             elif cmax is not None:
                 s += ((v - cmax * 0.8) / max(cmax * 0.8, 1e-9)) ** 2 * 0.5
-        # penaliza materiales activos
         active = sum(1 for b in baldadas if b > 0)
         s += active * 0.1
         return s
 
-    def random_baldadas():
-        """Reparte n_baldadas_total baldadas enteras al azar entre las n fuentes."""
-        counts = [0] * n
-        for _ in range(n_baldadas_total):
-            counts[random.randrange(n)] += 1
-        return counts
+    # ─── Búsqueda exhaustiva exacta ────────────────────────────────────────
+    # Recorre, en orden, TODAS las formas posibles de repartir
+    # n_baldadas_total entre los n materiales disponibles (técnica de
+    # "composición de un entero en k partes"). Es equivalente a contar en una
+    # numeración de base variable: la primera fuente puede tener entre 0 y el
+    # total de baldadas, la segunda entre 0 y lo que sobra, y así hasta la
+    # última, que recibe automáticamente el resto. Esto cubre el 100% del
+    # espacio de soluciones posibles — ninguna combinación queda sin probar,
+    # y el resultado es siempre el mismo para el mismo problema (sin azar).
+    from math import comb
+    total_combinaciones = comb(n_baldadas_total + n - 1, n - 1)
 
-    best_baldadas = None
-    best_score = float("inf")
+    best_baldadas = [0] * n
+    best_score = [float("inf")]
 
-    # Búsqueda aleatoria sobre combinaciones de baldadas enteras
-    for _ in range(n_iter):
-        b = random_baldadas()
-        sc = score(b)
-        if sc < best_score:
-            best_score = sc
-            best_baldadas = b[:]
+    def buscar(pos, restantes, actual):
+        if pos == n - 1:
+            actual[pos] = restantes
+            sc = score(actual)
+            if sc < best_score[0]:
+                best_score[0] = sc
+                best_baldadas[:] = actual[:]
+            actual[pos] = 0
+            return
+        for b in range(restantes + 1):
+            actual[pos] = b
+            buscar(pos + 1, restantes - b, actual)
+        actual[pos] = 0
 
-    # Refinamiento local: mueve UNA baldada entera de una fuente a otra
-    if best_baldadas:
-        current = best_baldadas[:]
-        for _ in range(500):
-            i, j = random.sample(range(n), 2)
-            if current[i] <= 0:
-                continue
-            nb = current[:]
-            nb[i] -= 1
-            nb[j] += 1
-            sc = score(nb)
-            if sc < best_score:
-                best_score = sc
-                best_baldadas = nb[:]
-                current = nb[:]
+    buscar(0, n_baldadas_total, [0] * n)
 
-    if not best_baldadas:
+    if best_score[0] == float("inf"):
         return None
 
     streams = []
@@ -486,8 +485,9 @@ def optimize_blend(crystals: list, mix_dilucion: dict | None,
         "streams": streams,
         "total_masa": blend["total_masa"],
         "law": blend["law"],
-        "score": best_score,
+        "score": best_score[0],
         "n_baldadas_total": n_baldadas_total,
+        "combinaciones_exploradas": total_combinaciones,
     }
 
 
@@ -1284,7 +1284,7 @@ elif page == "Calidad":
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "Optimizador":
     st.markdown('<div class="section-header">◆  Optimizador automático de mezcla</div>', unsafe_allow_html=True)
-    st.caption("Busca automáticamente la combinación de materiales que minimiza la desviación química respecto a las restricciones.")
+    st.caption("Búsqueda EXACTA y determinística: evalúa matemáticamente todas las combinaciones posibles de baldadas, sin azar.")
 
     crystals = st.session_state.crystals
     mix = st.session_state.mix_dilucion
@@ -1299,7 +1299,7 @@ elif page == "Optimizador":
         st.stop()
 
     # Parámetros
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         n_baldadas_input = st.number_input("Masa total objetivo (en baldadas)", min_value=1, value=10, step=1,
                                            help="Cada baldada equivale a 5 Ton. El resultado siempre usará baldadas enteras.")
@@ -1308,35 +1308,46 @@ elif page == "Optimizador":
     with col2:
         usar_mix = st.checkbox("Incluir Mezcla Dilución", value=bool(mix),
                                disabled=not bool(mix))
-    with col3:
-        n_iter = st.selectbox("Iteraciones", [1000, 3000, 5000, 10000], index=1)
+
+    # Aviso preventivo de tamaño de búsqueda (la cantidad de combinaciones
+    # crece muy rápido con más materiales y más baldadas — esto avisa antes
+    # de que el cálculo tarde más de lo esperado)
+    n_materiales_disponibles = len(crystals) + (1 if usar_mix and mix else 0)
+    if n_materiales_disponibles > 0:
+        from math import comb as _comb_preview
+        combinaciones_preview = _comb_preview(int(n_baldadas_input) + n_materiales_disponibles - 1, n_materiales_disponibles - 1) if n_materiales_disponibles > 1 else 1
+        if combinaciones_preview > 2_000_000:
+            st.warning(f"⚠️ Esta búsqueda evaluaría aproximadamente **{combinaciones_preview:,}** combinaciones — puede tardar varios minutos. Considera reducir la masa objetivo o el número de materiales disponibles.")
+        elif combinaciones_preview > 200_000:
+            st.caption(f"🔎 Esta búsqueda evaluará aproximadamente {combinaciones_preview:,} combinaciones (puede tardar algunos segundos).")
 
     st.markdown("---")
 
-    with st.expander("📐  Detalles del algoritmo"):
+    with st.expander("📐  Cómo funciona la búsqueda exacta"):
         st.markdown(f"""
-**Búsqueda aleatoria + refinamiento local (Hill Climbing), en baldadas enteras**
+**Búsqueda exhaustiva determinística — sin ningún componente aleatorio**
 
-Toda masa propuesta es siempre un múltiplo de **5 Ton** (1 baldada), igual que en el módulo de Dilución — no se generan masas fraccionarias.
+Toda masa propuesta es siempre un múltiplo de **5 Ton** (1 baldada), igual que en el módulo de Dilución.
 
-1. **{n_iter} iteraciones aleatorias**: reparte {n_baldadas_input} baldadas enteras al azar entre los materiales disponibles
-2. **500 pasos de refinamiento**: mueve 1 baldada entera de un material a otro si eso mejora el resultado
-3. **Función objetivo**:
+1. **Recorrido matemático completo**: se enumeran, en orden, TODAS las formas posibles de repartir {n_baldadas_input} baldadas entre los {n_materiales_disponibles} materiales disponibles (técnica de "composición de un entero en k partes"). Ninguna combinación queda sin probar.
+2. **Evaluación de cada combinación** contra la función de calidad:
    - Penalización fuera de rango: `((v - límite) / límite)² × 1000`
    - Desviación del punto medio: `× 0.5`
    - Materiales activos: `× 0.1` (prefiere mezclas simples)
-4. Materiales con 0 baldadas asignadas quedan excluidos del resultado final
+3. **Selección del óptimo real**: se queda con la combinación de menor score entre absolutamente todas las evaluadas.
+4. **Reproducibilidad garantizada**: dado el mismo conjunto de materiales, restricciones y masa objetivo, el resultado es siempre idéntico — no hay azar en ningún paso.
+
+Materiales con 0 baldadas asignadas quedan excluidos del resultado final.
         """)
 
     if st.button("▶  Buscar mezcla óptima", type="primary"):
-        with st.spinner("Optimizando... esto puede tomar unos segundos."):
+        with st.spinner("Evaluando todas las combinaciones posibles... esto puede tomar unos segundos."):
             result = optimize_blend(
                 crystals=crystals,
                 mix_dilucion=mix if usar_mix else None,
                 constraints=constraints,
                 total_target=total_target,
                 use_mix=usar_mix,
-                n_iter=int(n_iter),
             )
 
         if result is None:
@@ -1348,6 +1359,7 @@ Toda masa propuesta es siempre un múltiplo de **5 Ton** (1 baldada), igual que 
 
             st.markdown("---")
             st.markdown("#### Mezcla óptima encontrada")
+            st.caption(f"✓ Búsqueda exacta completa — se evaluaron {result.get('combinaciones_exploradas', 0):,} combinaciones posibles, sin azar.")
 
             # KPIs
             k1, k2, k3, k4 = st.columns(4)
@@ -1407,5 +1419,5 @@ border:1px solid #1E2A3A;border-radius:8px">
                 )
 
             st.markdown(f'<div class="formula-box">Score de optimización: {result["score"]:.6f} '
-                        f'(menor = mejor) | Iteraciones: {n_iter} + 500 refinamiento</div>',
+                        f'(menor = mejor) | Búsqueda exacta — {result.get("combinaciones_exploradas", 0):,} combinaciones evaluadas, sin azar</div>',
                         unsafe_allow_html=True)
