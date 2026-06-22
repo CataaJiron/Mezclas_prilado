@@ -281,9 +281,33 @@ def crystal_label(cr: dict) -> str:
 
 
 def build_crystal_lookup(crystals: list) -> tuple[list, dict]:
-    """Devuelve (lista de etiquetas 'Cristal - Losa', diccionario etiqueta -> cristal)."""
-    labels = [crystal_label(c) for c in crystals]
-    lookup = {crystal_label(c): c for c in crystals}
+    """Devuelve (lista de etiquetas 'Cristal - Losa', diccionario etiqueta -> cristal).
+    Si dos cristales generan la misma etiqueta (mismo nombre y losa), se les agrega
+    un sufijo #2, #3... para que cada uno siga siendo seleccionable de forma única."""
+    labels = []
+    lookup = {}
+    seen_count = {}
+    for c in crystals:
+        base_label = crystal_label(c)
+        seen_count[base_label] = seen_count.get(base_label, 0) + 1
+        label = base_label if seen_count[base_label] == 1 else f"{base_label} #{seen_count[base_label]}"
+        labels.append(label)
+        lookup[label] = c
+    return labels, lookup
+
+
+def build_crystal_lookup_by_index(crystals: list) -> tuple[list, dict]:
+    """Igual que build_crystal_lookup, pero el lookup mapea etiqueta -> índice real
+    en la lista (más seguro para editar/eliminar, evita ambigüedad por igualdad de objetos)."""
+    labels = []
+    lookup = {}
+    seen_count = {}
+    for idx, c in enumerate(crystals):
+        base_label = crystal_label(c)
+        seen_count[base_label] = seen_count.get(base_label, 0) + 1
+        label = base_label if seen_count[base_label] == 1 else f"{base_label} #{seen_count[base_label]}"
+        labels.append(label)
+        lookup[label] = idx
     return labels, lookup
 
 
@@ -648,14 +672,14 @@ elif page == "Cristales":
                     st.rerun()
 
         elif mode == "Editar existente" and crystals:
-            nombres = [c["nombre"] for c in crystals]
-            sel = st.selectbox("Seleccionar cristal", nombres)
-            idx = nombres.index(sel)
+            etiquetas, mapa_idx = build_crystal_lookup_by_index(crystals)
+            sel_etiqueta = st.selectbox("Seleccionar cristal", etiquetas, key="edit_sel_etiqueta")
+            idx = mapa_idx[sel_etiqueta]
             cr = crystals[idx]
 
             id_cols = st.columns(4)
             with id_cols[0]:
-                st.text_input("Nombre del cristal", value=sel, disabled=True, key="edit_nombre_display")
+                nombre_edit = st.text_input("Nombre del cristal", value=cr["nombre"], key="edit_nombre_input")
             with id_cols[1]:
                 lote = st.number_input("N° Lote", min_value=0, step=1, value=int(cr.get("lote", 0)), key="edit_lote")
             with id_cols[2]:
@@ -672,19 +696,20 @@ elif page == "Cristales":
                                                   key=f"edit_{comp}")
             if st.button("✓ Actualizar cristal", type="primary"):
                 st.session_state.crystals[idx] = {
-                    "nombre": sel, "lote": int(lote), "losa": losa.strip(), "ton": float(ton), **vals
+                    "nombre": nombre_edit.strip(), "lote": int(lote), "losa": losa.strip(), "ton": float(ton), **vals
                 }
                 persist_state()
-                st.success(f"Cristal '{sel}' actualizado.")
+                st.success(f"Cristal '{sel_etiqueta}' actualizado.")
                 st.rerun()
 
         elif mode == "Eliminar" and crystals:
-            nombres = [c["nombre"] for c in crystals]
-            sel = st.selectbox("Cristal a eliminar", nombres, key="del_sel")
+            etiquetas, mapa_idx = build_crystal_lookup_by_index(crystals)
+            sel_etiqueta = st.selectbox("Cristal a eliminar", etiquetas, key="del_sel")
             if st.button("🗑 Eliminar", type="secondary"):
-                st.session_state.crystals = [c for c in crystals if c["nombre"] != sel]
+                idx_a_eliminar = mapa_idx[sel_etiqueta]
+                st.session_state.crystals = [c for i, c in enumerate(crystals) if i != idx_a_eliminar]
                 persist_state()
-                st.success(f"'{sel}' eliminado.")
+                st.success(f"'{sel_etiqueta}' eliminado.")
                 st.rerun()
 
     # (Sección de fórmulas auditables removida)
