@@ -132,21 +132,25 @@
   "mix_dilucion": {
     "total_masa": 20,
     "law": {
-      "K2SO4": 0.7625,
-      "B": 0.0125,
-      "NaCl": 2.3,
-      "Mg": 0.09,
-      "Na": 0.9800000000000001,
-      "SO4": 0.4225,
-      "Na2SO4": 0.2375
+      "K2SO4": 25.315,
+      "B": 0.005,
+      "NaCl": 18.945,
+      "Mg": 0.045,
+      "Na": 0.07,
+      "SO4": 13.925,
+      "Na2SO4": 0.0
     },
     "streams": [
       {
         "nombre": "L DTP",
-        "masa": 15
+        "masa": 10
       },
       {
-        "nombre": "MFE",
+        "nombre": "SOP",
+        "masa": 5
+      },
+      {
+        "nombre": "MOP",
         "masa": 5
       }
     ]
