@@ -1,19 +1,6 @@
 {
   "crystals": [
     {
-      "nombre": "MFE",
-      "lote": 0,
-      "losa": "",
-      "ton": 0.0,
-      "K2SO4": 1.16,
-      "B": 0.02,
-      "NaCl": 8.03,
-      "Mg": 0.09,
-      "Na": 3.5,
-      "SO4": 0.64,
-      "Na2SO4": 0.95
-    },
-    {
       "nombre": "L DTP",
       "lote": 0,
       "losa": "Losa 1",
