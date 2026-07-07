@@ -1,38 +1,7 @@
 {
   "crystals": [],
-  "products": {
-    "QROP KPLUS": {
-      "K2SO4": {
-        "min": 2.0,
-        "max": 3.0
-      },
-      "B": {
-        "min": null,
-        "max": 0.03
-      },
-      "NaCl": {
-        "min": 2.5,
-        "max": 3.3
-      },
-      "Mg": {
-        "min": null,
-        "max": 0.23
-      },
-      "Na": {
-        "min": null,
-        "max": 0.7
-      },
-      "SO4": {
-        "min": null,
-        "max": 1.5
-      },
-      "Na2SO4": {
-        "min": null,
-        "max": 1.9
-      }
-    }
-  },
-  "active_product": "QROP KPLUS",
+  "products": {},
+  "active_product": null,
   "mix_dilucion": {
     "total_masa": 20,
     "law": {
