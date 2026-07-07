@@ -30,39 +30,9 @@
         "min": null,
         "max": 1.9
       }
-    },
-    "qrop npp": {
-      "K2SO4": {
-        "min": 2.5,
-        "max": 3.0
-      },
-      "B": {
-        "min": null,
-        "max": 0.02
-      },
-      "NaCl": {
-        "min": 2.2,
-        "max": 2.6
-      },
-      "Mg": {
-        "min": null,
-        "max": 0.23
-      },
-      "Na": {
-        "min": null,
-        "max": 0.7
-      },
-      "SO4": {
-        "min": null,
-        "max": 1.5
-      },
-      "Na2SO4": {
-        "min": 1.6,
-        "max": 2.0
-      }
     }
   },
-  "active_product": "qrop npp",
+  "active_product": "QROP KPLUS",
   "mix_dilucion": {
     "total_masa": 20,
     "law": {
