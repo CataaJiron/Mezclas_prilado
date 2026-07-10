@@ -57,31 +57,31 @@
     "QROP PREMIUM": {
       "K2SO4": {
         "min": null,
-        "max": null
+        "max": 2.0
       },
       "B": {
         "min": null,
-        "max": null
+        "max": 0.006
       },
       "NaCl": {
         "min": null,
-        "max": null
+        "max": 1.5
       },
       "Mg": {
         "min": null,
-        "max": null
+        "max": 0.05
       },
       "Na": {
         "min": null,
-        "max": null
+        "max": 0.6
       },
       "SO4": {
         "min": null,
-        "max": null
+        "max": 1.25
       },
       "Na2SO4": {
         "min": null,
-        "max": null
+        "max": 0.14
       }
     }
   },
