@@ -1,5 +1,19 @@
 {
-  "crystals": [],
+  "crystals": [
+    {
+      "nombre": "MFE",
+      "lote": 1,
+      "losa": "LOSA 2",
+      "ton": 500.0,
+      "K2SO4": 1.5,
+      "B": 0.003,
+      "NaCl": 1.5,
+      "Mg": 0.06,
+      "Na": 0.15,
+      "SO4": 0.1,
+      "Na2SO4": 0.01
+    }
+  ],
   "products": {},
   "active_product": null,
   "mix_dilucion": {
