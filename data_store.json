@@ -53,8 +53,39 @@
       "Na2SO4": 0.1
     }
   ],
-  "products": {},
-  "active_product": null,
+  "products": {
+    "QROP PREMIUM": {
+      "K2SO4": {
+        "min": null,
+        "max": null
+      },
+      "B": {
+        "min": null,
+        "max": null
+      },
+      "NaCl": {
+        "min": null,
+        "max": null
+      },
+      "Mg": {
+        "min": null,
+        "max": null
+      },
+      "Na": {
+        "min": null,
+        "max": null
+      },
+      "SO4": {
+        "min": null,
+        "max": null
+      },
+      "Na2SO4": {
+        "min": null,
+        "max": null
+      }
+    }
+  },
+  "active_product": "QROP PREMIUM",
   "mix_dilucion": {
     "total_masa": 35,
     "law": {
